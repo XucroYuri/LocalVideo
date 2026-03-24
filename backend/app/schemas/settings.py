@@ -205,15 +205,6 @@ class SettingsResponse(BaseModel):
     # Google Cloud 共享凭证
     google_credentials_path: str | None = None
 
-    # Video Generation - Vertex AI
-    video_vertex_ai_project: str | None = None
-    video_vertex_ai_location: str = "us-central1"
-    video_vertex_ai_model: str = "veo-3.1-fast-preview"
-    video_vertex_ai_aspect_ratio: str = "9:16"
-    video_vertex_ai_resolution: str = "1080"
-    video_vertex_ai_negative_prompt: str = ""
-    video_vertex_ai_enabled_models: list[str] | None = None
-
     # Video Generation - Seedance
     video_seedance_api_key_set: bool = False
     video_seedance_api_key: str | None = None
@@ -230,17 +221,6 @@ class SettingsResponse(BaseModel):
     video_wan2gp_resolution: str = "720x1280"
     video_wan2gp_negative_prompt: str = ""
     video_wan2gp_enabled_models: list[str] | None = None
-    video_kling_model: str = "kling-v3"
-    video_kling_aspect_ratio: str = "9:16"
-    video_kling_mode: str = "std"
-    video_vidu_model: str = "viduq3-turbo"
-    video_vidu_aspect_ratio: str = "9:16"
-    video_vidu_resolution: str = "1080p"
-    video_vidu_enabled_models: list[str] | None = None
-    video_minimax_model: str = "MiniMax-Hailuo-2.3"
-    video_minimax_aspect_ratio: str = "9:16"
-    video_minimax_resolution: str = "1080P"
-    video_minimax_enabled_models: list[str] | None = None
 
     # Default Providers
     default_llm_provider: str = "builtin_openai"
@@ -410,15 +390,6 @@ class SettingsUpdate(BaseModel):
     # Google Cloud 共享凭证
     google_credentials_path: str | None = None
 
-    # Video Generation - Vertex AI
-    video_vertex_ai_project: str | None = None
-    video_vertex_ai_location: str | None = None
-    video_vertex_ai_model: str | None = None
-    video_vertex_ai_aspect_ratio: str | None = None
-    video_vertex_ai_resolution: str | None = None
-    video_vertex_ai_negative_prompt: str | None = None
-    video_vertex_ai_enabled_models: list[str] | None = None
-
     # Video Generation - Seedance
     video_seedance_api_key: str | None = None
     video_seedance_base_url: str | None = None
@@ -434,17 +405,6 @@ class SettingsUpdate(BaseModel):
     video_wan2gp_resolution: str | None = None
     video_wan2gp_negative_prompt: str | None = None
     video_wan2gp_enabled_models: list[str] | None = None
-    video_kling_model: str | None = None
-    video_kling_aspect_ratio: str | None = None
-    video_kling_mode: str | None = None
-    video_vidu_model: str | None = None
-    video_vidu_aspect_ratio: str | None = None
-    video_vidu_resolution: str | None = None
-    video_vidu_enabled_models: list[str] | None = None
-    video_minimax_model: str | None = None
-    video_minimax_aspect_ratio: str | None = None
-    video_minimax_resolution: str | None = None
-    video_minimax_enabled_models: list[str] | None = None
 
     # Default Providers
     default_llm_provider: str | None = None

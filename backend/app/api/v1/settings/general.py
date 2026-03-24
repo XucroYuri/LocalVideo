@@ -43,12 +43,6 @@ from app.providers.image.minimax import (
     normalize_minimax_image_size,
 )
 from app.providers.kling_auth import is_kling_configured
-from app.providers.video.minimax import (
-    MINIMAX_VIDEO_MODEL_PRESETS,
-    normalize_minimax_video_aspect_ratio,
-    normalize_minimax_video_model,
-    normalize_minimax_video_resolution,
-)
 from app.schemas.settings import SettingsResponse, SettingsUpdate
 from app.services.settings_store import PERSISTABLE_SETTING_KEYS, SettingsStoreService
 from app.services.voice_library_service import VoiceLibraryService
@@ -90,7 +84,6 @@ VIDU_IMAGE_ASPECT_RATIOS = {"16:9", "9:16", "1:1", "3:4", "4:3", "21:9", "2:3", 
 VIDU_VIDEO_ASPECT_RATIOS = {"16:9", "9:16", "3:4", "4:3", "1:1"}
 MINIMAX_IMAGE_ASPECT_RATIO_SET = set(MINIMAX_IMAGE_ASPECT_RATIOS)
 MINIMAX_IMAGE_MODEL_SET = set(MINIMAX_IMAGE_MODEL_OPTIONS)
-MINIMAX_VIDEO_MODEL_SET = set(MINIMAX_VIDEO_MODEL_PRESETS.keys())
 BUILTIN_VOLCENGINE_LLM_PROVIDER_ID = "builtin_volcengine"
 BUILTIN_VOLCENGINE_SEEDREAM_PROVIDER_ID = "builtin_volcengine_seedream"
 CONTAINERIZED_LOCKED_PATH_KEYS = {
@@ -1087,18 +1080,7 @@ def _build_settings_response() -> SettingsResponse:
             if settings.image_minimax_enabled_models is not None
             else None
         ),
-        video_vertex_ai_project=settings.video_vertex_ai_project,
         google_credentials_path=settings.google_credentials_path,
-        video_vertex_ai_location=settings.video_vertex_ai_location,
-        video_vertex_ai_model=settings.video_vertex_ai_model,
-        video_vertex_ai_aspect_ratio=settings.video_vertex_ai_aspect_ratio,
-        video_vertex_ai_resolution=settings.video_vertex_ai_resolution,
-        video_vertex_ai_negative_prompt=settings.video_vertex_ai_negative_prompt,
-        video_vertex_ai_enabled_models=(
-            _normalize_model_strings(settings.video_vertex_ai_enabled_models or [])
-            if settings.video_vertex_ai_enabled_models is not None
-            else None
-        ),
         video_seedance_api_key_set=bool(shared_volcengine_seedance_api_key),
         video_seedance_api_key=shared_volcengine_seedance_api_key or None,
         video_seedance_base_url=_normalize_seedance_base_url(settings.video_seedance_base_url),
@@ -1118,43 +1100,6 @@ def _build_settings_response() -> SettingsResponse:
         video_wan2gp_enabled_models=(
             _normalize_model_strings(settings.video_wan2gp_enabled_models or [])
             if settings.video_wan2gp_enabled_models is not None
-            else None
-        ),
-        video_kling_model=str(settings.video_kling_model or "kling-v3").strip() or "kling-v3",
-        video_kling_aspect_ratio=(
-            str(settings.video_kling_aspect_ratio or "").strip()
-            if str(settings.video_kling_aspect_ratio or "").strip() in {"16:9", "9:16", "1:1"}
-            else "9:16"
-        ),
-        video_kling_mode=(
-            "pro" if str(settings.video_kling_mode or "").strip().lower() == "pro" else "std"
-        ),
-        video_vidu_model=str(settings.video_vidu_model or "viduq3-turbo").strip() or "viduq3-turbo",
-        video_vidu_aspect_ratio=_normalize_vidu_video_aspect_ratio(
-            settings.video_vidu_aspect_ratio,
-            default="9:16",
-        ),
-        video_vidu_resolution=_normalize_vidu_video_resolution(
-            settings.video_vidu_resolution,
-            default="1080p",
-        ),
-        video_vidu_enabled_models=(
-            _normalize_model_strings(settings.video_vidu_enabled_models or [])
-            if settings.video_vidu_enabled_models is not None
-            else None
-        ),
-        video_minimax_model=normalize_minimax_video_model(settings.video_minimax_model),
-        video_minimax_aspect_ratio=normalize_minimax_video_aspect_ratio(
-            settings.video_minimax_aspect_ratio,
-            default="9:16",
-        ),
-        video_minimax_resolution=normalize_minimax_video_resolution(
-            settings.video_minimax_resolution,
-            default="1080P",
-        ),
-        video_minimax_enabled_models=(
-            _normalize_model_strings(settings.video_minimax_enabled_models or [])
-            if settings.video_minimax_enabled_models is not None
             else None
         ),
         default_llm_provider=default_llm_provider,
@@ -1709,70 +1654,11 @@ async def update_settings(update: SettingsUpdate, db: AsyncSession = Depends(get
         payload["image_minimax_enabled_models"] = (
             _normalize_model_strings(raw_enabled or []) if raw_enabled is not None else None
         )
-    if "video_kling_model" in payload:
-        payload["video_kling_model"] = (
-            str(payload.get("video_kling_model") or "kling-v3").strip() or "kling-v3"
-        )
-    if "video_kling_aspect_ratio" in payload:
-        aspect_ratio = str(payload.get("video_kling_aspect_ratio") or "9:16").strip()
-        payload["video_kling_aspect_ratio"] = (
-            aspect_ratio if aspect_ratio in {"16:9", "9:16", "1:1"} else "9:16"
-        )
-    if "video_kling_mode" in payload:
-        mode = str(payload.get("video_kling_mode") or "std").strip().lower()
-        payload["video_kling_mode"] = mode if mode in {"std", "pro"} else "std"
-    if "video_vidu_model" in payload:
-        payload["video_vidu_model"] = (
-            str(payload.get("video_vidu_model") or "viduq3-turbo").strip() or "viduq3-turbo"
-        )
-    if "video_vidu_aspect_ratio" in payload:
-        payload["video_vidu_aspect_ratio"] = _normalize_vidu_video_aspect_ratio(
-            payload.get("video_vidu_aspect_ratio"),
-            default="9:16",
-        )
-    if "video_vidu_resolution" in payload:
-        payload["video_vidu_resolution"] = _normalize_vidu_video_resolution(
-            payload.get("video_vidu_resolution"),
-            default="1080p",
-        )
-    if "video_vidu_enabled_models" in payload:
-        raw_enabled = payload.get("video_vidu_enabled_models")
-        payload["video_vidu_enabled_models"] = (
-            _normalize_model_strings(raw_enabled or []) if raw_enabled is not None else None
-        )
-    if "video_minimax_model" in payload:
-        payload["video_minimax_model"] = normalize_minimax_video_model(
-            payload.get("video_minimax_model")
-        )
-    if "video_minimax_aspect_ratio" in payload:
-        payload["video_minimax_aspect_ratio"] = normalize_minimax_video_aspect_ratio(
-            payload.get("video_minimax_aspect_ratio"),
-            default="9:16",
-        )
-    if "video_minimax_resolution" in payload:
-        payload["video_minimax_resolution"] = normalize_minimax_video_resolution(
-            payload.get("video_minimax_resolution"),
-            default="1080P",
-        )
-    if "video_minimax_enabled_models" in payload:
-        raw_enabled = payload.get("video_minimax_enabled_models")
-        payload["video_minimax_enabled_models"] = (
-            _normalize_model_strings(raw_enabled or []) if raw_enabled is not None else None
-        )
     if "image_wan2gp_enabled_models" in payload:
         raw_enabled = payload.get("image_wan2gp_enabled_models")
         payload["image_wan2gp_enabled_models"] = (
             _normalize_model_strings(raw_enabled or []) if raw_enabled is not None else None
         )
-    if "video_vertex_ai_enabled_models" in payload:
-        raw_enabled = payload.get("video_vertex_ai_enabled_models")
-        payload["video_vertex_ai_enabled_models"] = (
-            _normalize_model_strings(raw_enabled or []) if raw_enabled is not None else None
-        )
-    if "video_vertex_ai_negative_prompt" in payload:
-        payload["video_vertex_ai_negative_prompt"] = str(
-            payload.get("video_vertex_ai_negative_prompt") or ""
-        ).strip()
     if "video_seedance_api_key" in payload:
         payload["video_seedance_api_key"] = str(payload.get("video_seedance_api_key") or "").strip()
     if "video_seedance_base_url" in payload:
