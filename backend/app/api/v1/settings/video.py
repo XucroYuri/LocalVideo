@@ -12,15 +12,6 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from app.config import settings
-from app.providers.kling_auth import (
-    build_kling_auth_headers,
-    is_kling_configured,
-)
-from app.providers.video.vertex_ai import (
-    VertexAIVideoProvider,
-    get_vertex_video_model_id_candidates,
-    normalize_vertex_video_location,
-)
 from app.providers.video.volcengine_seedance import resolve_seedance_model_id
 from app.providers.video.wan2gp import (
     get_wan2gp_i2v_preset,
@@ -31,14 +22,9 @@ from app.providers.wan2gp import is_model_cached
 
 from ._common import (
     _mask_key,
-    _normalize_kling_access_key,
-    _normalize_kling_base_url,
-    _normalize_kling_secret_key,
     _normalize_seedance_api_key,
     _normalize_seedance_base_url,
     _normalize_video_provider_id,
-    _normalize_vidu_api_key,
-    _normalize_vidu_base_url,
     logger,
 )
 
@@ -63,11 +49,7 @@ class VideoModelConnectivityTestRequest(BaseModel):
     provider_id: str
     model: str
     api_key: str | None = None
-    access_key: str | None = None
-    secret_key: str | None = None
     base_url: str | None = None
-    project_id: str | None = None
-    location: str | None = None
     wan2gp_path: str | None = None
 
 
@@ -175,44 +157,6 @@ def _extract_seedance_task_id(payload: dict) -> str:
         if text:
             return text
     raise ValueError(f"Seedance create task response missing task id: {payload}")
-
-
-def _extract_kling_task_id(payload: dict) -> str:
-    data_block = payload.get("data")
-    if isinstance(data_block, dict):
-        task_id = str(data_block.get("task_id") or data_block.get("id") or "").strip()
-        if task_id:
-            return task_id
-    task_id = str(payload.get("task_id") or payload.get("id") or "").strip()
-    if task_id:
-        return task_id
-    raise ValueError(f"Kling create task response missing task id: {payload}")
-
-
-def _extract_vidu_task_id(payload: dict) -> str:
-    task_id = str(payload.get("task_id") or payload.get("id") or "").strip()
-    if task_id:
-        return task_id
-    data_block = payload.get("data")
-    if isinstance(data_block, dict):
-        task_id = str(data_block.get("task_id") or data_block.get("id") or "").strip()
-        if task_id:
-            return task_id
-    raise ValueError(f"Vidu create task response missing task id: {payload}")
-
-
-def _build_vertex_location_candidates(location: str | None) -> list[str]:
-    raw_location = str(location or "").strip()
-    normalized_location = normalize_vertex_video_location(raw_location)
-    candidates: list[str] = []
-    for item in (raw_location, normalized_location):
-        text = str(item or "").strip()
-        if not text or text in candidates:
-            continue
-        candidates.append(text)
-    if not candidates:
-        candidates.append(normalized_location)
-    return candidates
 
 
 async def _run_seedance_connectivity_test(
@@ -387,99 +331,6 @@ async def test_video_model_connectivity(payload: VideoModelConnectivityTestReque
             )
             return VideoModelConnectivityTestResponse(**result.model_dump())
 
-        if provider_id == "vertex_ai":
-            project_id = str(payload.project_id or settings.video_vertex_ai_project or "").strip()
-            requested_location = (
-                str(payload.location or settings.video_vertex_ai_location or "us-central1").strip()
-                or "us-central1"
-            )
-            normalized_location = normalize_vertex_video_location(requested_location)
-            if not project_id:
-                raise ValueError("Vertex AI Project ID 未配置")
-
-            vertex_provider = VertexAIVideoProvider(
-                project_id=project_id,
-                location=normalized_location,
-                model=model,
-            )
-            vertex_provider._validate_config()
-            access_token = await vertex_provider._get_access_token()
-            model_id_candidates = get_vertex_video_model_id_candidates(model)
-            location_candidates = _build_vertex_location_candidates(requested_location)
-            if not model_id_candidates:
-                raise ValueError("Vertex AI model not configured")
-            headers = {
-                "Authorization": f"Bearer {access_token}",
-                "Content-Type": "application/json",
-            }
-            timeout = httpx.Timeout(30.0, connect=15.0)
-            probe_payload: dict[str, object] = {
-                # Intentionally invalid payload to avoid creating real generation tasks.
-                "instances": [],
-                "parameters": {},
-            }
-            last_status: int | None = None
-            last_response_preview = ""
-            attempted_endpoints: list[str] = []
-            async with httpx.AsyncClient(timeout=timeout, trust_env=True) as client:
-                for candidate_location in location_candidates:
-                    for candidate_model_id in model_id_candidates:
-                        model_url = (
-                            f"https://{candidate_location}-aiplatform.googleapis.com/v1/projects/{project_id}"
-                            f"/locations/{candidate_location}/publishers/google/models/"
-                            f"{candidate_model_id}:predictLongRunning"
-                        )
-                        attempted_endpoints.append(f"{candidate_location}/{candidate_model_id}")
-                        response = await client.post(
-                            model_url,
-                            headers=headers,
-                            json=probe_payload,
-                        )
-                        status_code = response.status_code
-                        last_status = status_code
-                        if status_code in {200, 201, 202, 400}:
-                            latency_ms = int((time.perf_counter() - started) * 1000)
-                            fallback_hints: list[str] = []
-                            if candidate_location != requested_location:
-                                fallback_hints.append(
-                                    f"location 已从 {requested_location} 回退为 {candidate_location}"
-                                )
-                            if candidate_model_id != model:
-                                fallback_hints.append(f"model_id 解析为 {candidate_model_id}")
-                            message = "Vertex AI 鉴权成功，模型端点可访问。"
-                            if status_code == 400:
-                                message += "（参数探测返回 400，属于预期）"
-                            if fallback_hints:
-                                message += f"（{'; '.join(fallback_hints)}）"
-                            return VideoModelConnectivityTestResponse(
-                                success=True,
-                                model=model,
-                                latency_ms=latency_ms,
-                                message=message,
-                            )
-                        if status_code == 404:
-                            body_text = str(response.text or "").strip()
-                            last_response_preview = body_text[:300]
-                            continue
-                        response.raise_for_status()
-
-            location_summary = ", ".join(location_candidates)
-            model_summary = ", ".join(model_id_candidates)
-            endpoint_summary = ", ".join(attempted_endpoints)
-            detail = (
-                "Vertex AI 模型端点不可用。"
-                f"已尝试 locations=[{location_summary}] "
-                f"models=[{model_summary}] "
-                f"endpoints=[{endpoint_summary}]"
-            )
-            if requested_location.lower() == "global" and "us-central1" in location_candidates:
-                detail += "；提示：Veo 视频模型通常建议使用 us-central1。"
-            if last_status is not None:
-                detail += f"；last_status={last_status}"
-            if last_response_preview:
-                detail += f"；response_body={last_response_preview}"
-            raise ValueError(detail)
-
         if provider_id == "wan2gp":
             wan2gp_path = str(payload.wan2gp_path or settings.wan2gp_path or "").strip()
             if not wan2gp_path:
@@ -523,107 +374,6 @@ async def test_video_model_connectivity(payload: VideoModelConnectivityTestReque
                 model=model,
                 latency_ms=latency_ms,
                 message=f"Wan2GP 运行时可用（{model_mode}）。{cache_message}",
-            )
-
-        if provider_id == "kling":
-            resolved_model = (
-                str(model or settings.video_kling_model or "kling-v3").strip() or "kling-v3"
-            )
-            resolved_access_key = _normalize_kling_access_key(
-                payload.access_key if payload.access_key is not None else settings.kling_access_key
-            )
-            resolved_secret_key = _normalize_kling_secret_key(
-                payload.secret_key if payload.secret_key is not None else settings.kling_secret_key
-            )
-            resolved_base_url = _normalize_kling_base_url(
-                str(payload.base_url or settings.kling_base_url or "")
-            )
-            if not is_kling_configured(
-                access_key=resolved_access_key,
-                secret_key=resolved_secret_key,
-            ):
-                raise ValueError("可灵 Access Key / Secret Key 未配置")
-            request_payload = {
-                "model_name": resolved_model,
-                "prompt": "Kling connectivity test. Generate a short sample video.",
-                "duration": "5",
-                "mode": "std",
-            }
-            timeout = httpx.Timeout(45.0, connect=20.0)
-            async with httpx.AsyncClient(timeout=timeout, trust_env=True) as client:
-                response = await client.post(
-                    f"{resolved_base_url}/v1/videos/text2video",
-                    headers={
-                        **build_kling_auth_headers(
-                            access_key=resolved_access_key,
-                            secret_key=resolved_secret_key,
-                        ),
-                        "Content-Type": "application/json",
-                        "Accept": "application/json",
-                    },
-                    json=request_payload,
-                )
-                response.raise_for_status()
-                response_payload = response.json()
-                if not isinstance(response_payload, dict):
-                    raise ValueError(f"Unexpected Kling response: {response_payload}")
-                code = int(response_payload.get("code", -1))
-                if code != 0:
-                    message = str(
-                        response_payload.get("message")
-                        or response_payload.get("msg")
-                        or f"code={code}"
-                    ).strip()
-                    raise ValueError(f"Kling 任务创建失败: {message}")
-                task_id = _extract_kling_task_id(response_payload)
-
-            latency_ms = int((time.perf_counter() - started) * 1000)
-            return VideoModelConnectivityTestResponse(
-                success=True,
-                model=resolved_model,
-                latency_ms=latency_ms,
-                message=f"Kling 任务创建成功（task_id={task_id}）",
-            )
-
-        if provider_id == "vidu":
-            resolved_model = (
-                str(model or settings.video_vidu_model or "viduq3-turbo").strip() or "viduq3-turbo"
-            )
-            resolved_api_key = _normalize_vidu_api_key(payload.api_key or settings.vidu_api_key)
-            resolved_base_url = _normalize_vidu_base_url(
-                str(payload.base_url or settings.vidu_base_url or "")
-            )
-            if not resolved_api_key:
-                raise ValueError("Vidu API Key 未配置")
-            request_payload = {
-                "model": resolved_model,
-                "prompt": "Vidu connectivity test. Generate a short sample video.",
-                "duration": 5,
-                "aspect_ratio": "1:1",
-            }
-            timeout = httpx.Timeout(45.0, connect=20.0)
-            async with httpx.AsyncClient(timeout=timeout, trust_env=True) as client:
-                response = await client.post(
-                    f"{resolved_base_url}/ent/v2/text2video",
-                    headers={
-                        "Authorization": f"Token {resolved_api_key}",
-                        "Content-Type": "application/json",
-                        "Accept": "application/json",
-                    },
-                    json=request_payload,
-                )
-                response.raise_for_status()
-                response_payload = response.json()
-                if not isinstance(response_payload, dict):
-                    raise ValueError(f"Unexpected Vidu response: {response_payload}")
-                task_id = _extract_vidu_task_id(response_payload)
-
-            latency_ms = int((time.perf_counter() - started) * 1000)
-            return VideoModelConnectivityTestResponse(
-                success=True,
-                model=resolved_model,
-                latency_ms=latency_ms,
-                message=f"Vidu 任务创建成功（task_id={task_id}）",
             )
 
         raise ValueError(f"Unsupported video provider: {provider_id}")
