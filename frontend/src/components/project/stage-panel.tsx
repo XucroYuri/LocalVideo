@@ -37,10 +37,7 @@ import {
   getWan2gpVideoPresetById,
   isWan2gpT2iPreset,
   isWan2gpI2iPreset,
-  getVertexVideoDefaults,
   getSeedanceVideoDefaults,
-  getKlingVideoDefaults,
-  getViduVideoDefaults,
   getWan2gpVideoDefaults,
   makeProviderModelValue,
   parseProviderModelValue,
@@ -338,50 +335,11 @@ export function StagePanel({
   const handleVideoRuntimeModelChange = useCallback((value: string) => {
     const parsed = parseProviderModelValue(value)
     const videoModelMode: 't2v' | 'i2v' = effectiveUseFirstFrameRef ? 'i2v' : 't2v'
-    if (parsed.provider === 'vertex_ai') {
-      const defaults = getVertexVideoDefaults(settings, videoModelMode)
-      const model = parsed.model || defaults.model
-      updateConfig({
-        videoProvider: 'vertex_ai',
-        ...(videoModelMode === 'i2v'
-          ? { videoModelI2v: model }
-          : { videoModel: model }),
-        videoAspectRatio: config.videoAspectRatio || defaults.aspectRatio,
-        resolution: config.resolution || defaults.resolution,
-      })
-      return
-    }
     if (parsed.provider === 'volcengine_seedance') {
       const defaults = getSeedanceVideoDefaults(settings, videoModelMode)
       const model = parsed.model || defaults.model
       updateConfig({
         videoProvider: 'volcengine_seedance',
-        ...(videoModelMode === 'i2v'
-          ? { videoModelI2v: model }
-          : { videoModel: model }),
-        videoAspectRatio: config.videoAspectRatio || defaults.aspectRatio,
-        resolution: config.resolution || defaults.resolution,
-      })
-      return
-    }
-    if (parsed.provider === 'kling') {
-      const defaults = getKlingVideoDefaults(settings, videoModelMode)
-      const model = parsed.model || defaults.model
-      updateConfig({
-        videoProvider: 'kling',
-        ...(videoModelMode === 'i2v'
-          ? { videoModelI2v: model }
-          : { videoModel: model }),
-        videoAspectRatio: config.videoAspectRatio || defaults.aspectRatio,
-        resolution: config.resolution || defaults.resolution,
-      })
-      return
-    }
-    if (parsed.provider === 'vidu') {
-      const defaults = getViduVideoDefaults(settings, videoModelMode)
-      const model = parsed.model || defaults.model
-      updateConfig({
-        videoProvider: 'vidu',
         ...(videoModelMode === 'i2v'
           ? { videoModelI2v: model }
           : { videoModel: model }),

@@ -14,7 +14,6 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { resolveEnabledModelIds } from '@/lib/provider-config'
 import { cn } from '@/lib/utils'
 import {
   getWan2gpResolutionChoices,
@@ -27,22 +26,14 @@ import {
   SEEDANCE_RESOLUTIONS,
 } from '@/lib/seedance'
 import {
-  VERTEX_VIDEO_MODELS,
   CONCURRENCY_OPTIONS,
   SECTION_TITLE_CLASS,
   getImageDefaults,
   getImageModelDefault,
   getWan2gpDefaults,
   getScopedWan2gpInferenceSteps,
-  getVertexVideoDefaults,
   getSeedanceVideoDefaults,
-  getKlingVideoDefaults,
-  getViduVideoDefaults,
   getWan2gpVideoDefaults,
-  KLING_VIDEO_ASPECT_RATIOS,
-  KLING_VIDEO_RESOLUTIONS,
-  VIDU_VIDEO_ASPECT_RATIOS,
-  VIDU_VIDEO_RESOLUTIONS,
   makeProviderModelValue,
   buildProviderModelLabel,
   formatImageSizeLabel,
@@ -65,7 +56,6 @@ import type { StageConfig } from '@/types/stage-panel'
 const VIDEO_ASPECT_RATIOS = ['16:9', '9:16']
 const VIDEO_RESOLUTIONS = ['720', '1080']
 const WAN2GP_DREAMOMNI2_PRESET_ID = 'flux_dev_kontext_dreamomni2'
-const VIDU_VIDEO_MODEL_OPTIONS = ['viduq3-turbo', 'viduq3-pro'] as const
 
 interface StageShotsConfigProps {
   config: StageConfig
@@ -342,28 +332,9 @@ export function StageShotsConfig({
 
   const useFirstFrameRef = effectiveUseFirstFrameRef
   const videoModelMode: 't2v' | 'i2v' = useFirstFrameRef ? 'i2v' : 't2v'
-  const vertexVideoDefaults = useMemo(
-    () => getVertexVideoDefaults(settings, videoModelMode),
-    [settings, videoModelMode]
-  )
   const seedanceVideoDefaults = useMemo(
     () => getSeedanceVideoDefaults(settings, videoModelMode),
     [settings, videoModelMode]
-  )
-  const klingVideoDefaults = useMemo(
-    () => getKlingVideoDefaults(settings, videoModelMode),
-    [settings, videoModelMode]
-  )
-  const viduVideoDefaults = useMemo(
-    () => getViduVideoDefaults(settings, videoModelMode),
-    [settings, videoModelMode]
-  )
-  const enabledViduVideoModels = useMemo(
-    () => resolveEnabledModelIds(
-      settings?.video_vidu_enabled_models,
-      [...VIDU_VIDEO_MODEL_OPTIONS]
-    ),
-    [settings?.video_vidu_enabled_models]
   )
   const useReferenceImageRef = config.useReferenceImageRef ?? false
   const wan2gpVideoDefaults = useMemo(() => getWan2gpVideoDefaults(settings), [settings])
@@ -478,30 +449,6 @@ export function StageShotsConfig({
 
   const videoRuntimeOptions = useMemo<ProviderModelOption[]>(() => [
     ...(
-      videoProviders.includes('vertex_ai')
-        ? VERTEX_VIDEO_MODELS
-          .filter((model) => {
-            if (isSingleTakeEnabled && !model.supportsLastFrame) {
-              return false
-            }
-            if (useFirstFrameRef && useReferenceImageRef) {
-              return model.supportsReferenceImage && model.supportsCombinedReference
-            }
-            if (useReferenceImageRef) {
-              return model.supportsReferenceImage
-            }
-            return true
-          })
-          .map((model) => ({
-            value: makeProviderModelValue('vertex_ai', model.id),
-            provider: 'vertex_ai',
-            model: model.id,
-            label: buildProviderModelLabel('vertex_ai', model.label, 'Vertex AI'),
-            restrictions: useReferenceImageRef ? [...(model.referenceRestrictions || [])] : undefined,
-          }))
-        : []
-    ),
-    ...(
       videoProviders.includes('volcengine_seedance')
         ? SEEDANCE_MODEL_PRESETS
           .filter((preset) => {
@@ -527,26 +474,6 @@ export function StageShotsConfig({
         : []
     ),
     ...(
-      videoProviders.includes('kling') && !useReferenceImageRef
-        ? [{
-            value: makeProviderModelValue('kling', klingVideoDefaults.model || 'kling-v3'),
-            provider: 'kling',
-            model: klingVideoDefaults.model || 'kling-v3',
-            label: buildProviderModelLabel('kling', klingVideoDefaults.model || 'kling-v3', '可灵'),
-          }]
-        : []
-    ),
-    ...(
-      videoProviders.includes('vidu') && !useReferenceImageRef
-        ? enabledViduVideoModels.map((modelId) => ({
-            value: makeProviderModelValue('vidu', modelId),
-            provider: 'vidu',
-            model: modelId,
-            label: buildProviderModelLabel('vidu', modelId, 'Vidu'),
-          }))
-        : []
-    ),
-    ...(
       videoProviders.includes('wan2gp') && !useReferenceImageRef
         ? (useFirstFrameRef ? wan2gpVideoI2vPresets : wan2gpVideoT2vPresets)
           .filter((preset) => !isSingleTakeEnabled || preset.supports_last_frame !== false)
@@ -560,8 +487,6 @@ export function StageShotsConfig({
         : []
     ),
   ], [
-    enabledViduVideoModels,
-    klingVideoDefaults.model,
     videoProviders,
     isSingleTakeEnabled,
     useFirstFrameRef,
@@ -610,16 +535,10 @@ export function StageShotsConfig({
         ? (config.videoModelI2v || '')
         : (config.videoModel || '')
     ).trim()
-    if (effectiveVideoProvider === 'volcengine_seedance') {
-      return makeProviderModelValue('volcengine_seedance', preferredVideoModel || seedanceVideoDefaults.model)
-    }
-    if (effectiveVideoProvider === 'kling') {
-      return makeProviderModelValue('kling', preferredVideoModel || klingVideoDefaults.model)
-    }
-    if (effectiveVideoProvider === 'vidu') {
-      return makeProviderModelValue('vidu', preferredVideoModel || viduVideoDefaults.model)
-    }
-    return makeProviderModelValue('vertex_ai', preferredVideoModel || vertexVideoDefaults.model)
+    return makeProviderModelValue(
+      'volcengine_seedance',
+      preferredVideoModel || seedanceVideoDefaults.model
+    )
   }, [
     effectiveVideoProvider,
     useFirstFrameRef,
@@ -629,9 +548,6 @@ export function StageShotsConfig({
     config.videoModel,
     wan2gpVideoDefaults,
     seedanceVideoDefaults.model,
-    klingVideoDefaults.model,
-    viduVideoDefaults.model,
-    vertexVideoDefaults.model,
   ])
 
   const effectiveVideoRuntimeValue = useMemo(
@@ -646,31 +562,13 @@ export function StageShotsConfig({
   )
   const runtimeVideoProvider = selectedVideoRuntimeOption?.provider || effectiveVideoProvider
   const isWan2gpVideoProvider = runtimeVideoProvider === 'wan2gp'
-  const runtimeVideoDefaults = runtimeVideoProvider === 'volcengine_seedance'
-    ? getSeedanceVideoDefaults(settings, videoModelMode)
-    : (
-      runtimeVideoProvider === 'kling'
-        ? getKlingVideoDefaults(settings, videoModelMode)
-        : (
-          runtimeVideoProvider === 'vidu'
-            ? getViduVideoDefaults(settings, videoModelMode)
-            : getVertexVideoDefaults(settings, videoModelMode)
-        )
-    )
+  const runtimeVideoDefaults = getSeedanceVideoDefaults(settings, videoModelMode)
   const runtimeVideoAspectRatios = runtimeVideoProvider === 'volcengine_seedance'
     ? SEEDANCE_ASPECT_RATIOS
-    : (
-      runtimeVideoProvider === 'kling'
-        ? [...KLING_VIDEO_ASPECT_RATIOS]
-        : (runtimeVideoProvider === 'vidu' ? [...VIDU_VIDEO_ASPECT_RATIOS] : VIDEO_ASPECT_RATIOS)
-    )
+    : VIDEO_ASPECT_RATIOS
   const runtimeVideoResolutions = runtimeVideoProvider === 'volcengine_seedance'
     ? SEEDANCE_RESOLUTIONS
-    : (
-      runtimeVideoProvider === 'kling'
-        ? [...KLING_VIDEO_RESOLUTIONS]
-        : (runtimeVideoProvider === 'vidu' ? [...VIDU_VIDEO_RESOLUTIONS] : VIDEO_RESOLUTIONS)
-    )
+    : VIDEO_RESOLUTIONS
   const effectiveVideoAspectRatio = runtimeVideoAspectRatios.includes(config.videoAspectRatio || '')
     ? (config.videoAspectRatio || '')
     : runtimeVideoDefaults.aspectRatio
