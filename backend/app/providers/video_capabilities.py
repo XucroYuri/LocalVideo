@@ -3,28 +3,6 @@ from __future__ import annotations
 from math import floor
 from typing import Any
 
-from app.providers.video.kling import (
-    DEFAULT_KLING_VIDEO_MODEL,
-    KLING_VIDEO_MODEL_PRESETS,
-    get_kling_video_preset,
-)
-from app.providers.video.minimax import (
-    DEFAULT_MINIMAX_VIDEO_MODEL,
-    MINIMAX_VIDEO_MODEL_PRESETS,
-    get_minimax_video_preset,
-    get_supported_minimax_video_durations,
-    normalize_minimax_video_resolution,
-)
-from app.providers.video.vertex_ai import (
-    VERTEX_AI_MODEL_PRESETS,
-    VERTEX_LAST_FRAME_SUPPORTED_MODEL_KEYS,
-    VERTEX_REFERENCE_SUBJECT_MODEL_KEYS,
-)
-from app.providers.video.vidu import (
-    DEFAULT_VIDU_VIDEO_MODEL,
-    VIDU_VIDEO_MODEL_PRESETS,
-    get_vidu_video_preset,
-)
 from app.providers.video.volcengine_seedance import (
     SEEDANCE_MODEL_PRESETS,
     get_seedance_duration_control_mode,
@@ -68,49 +46,6 @@ def get_video_model_capability(
     model_name = str(model or "").strip()
     video_mode = str(mode or "t2v").strip().lower()
 
-    if provider == "vertex_ai":
-        resolved_model = model_name or "veo-3.1-fast-preview"
-        preset = VERTEX_AI_MODEL_PRESETS.get(resolved_model) or VERTEX_AI_MODEL_PRESETS.get(
-            "veo-3.1-fast-preview"
-        )
-        if not preset:
-            return None
-        supports_reference_image = resolved_model in VERTEX_REFERENCE_SUBJECT_MODEL_KEYS
-        supports_last_frame = bool(
-            preset.get(
-                "supports_last_frame", resolved_model in VERTEX_LAST_FRAME_SUPPORTED_MODEL_KEYS
-            )
-        )
-        return {
-            "id": resolved_model,
-            "label": resolved_model,
-            "description": str(preset.get("description") or ""),
-            "supports_t2v": True,
-            "supports_i2v": True,
-            "supports_last_frame": supports_last_frame,
-            "supports_reference_image": supports_reference_image,
-            "supports_combined_reference": False,
-            "max_reference_images": 3 if supports_reference_image else 0,
-            "supported_durations_seconds": _dedupe_positive_ints(
-                list(preset.get("durations") or [])
-            ),
-            "supported_aspect_ratios": _dedupe_non_empty_strings(
-                [str(item) for item in preset.get("aspect_ratios") or []]
-            ),
-            "supported_resolutions": _normalize_resolution_values(
-                list(preset.get("resolutions") or [])
-            ),
-            "default_aspect_ratio": str(preset.get("default_aspect_ratio") or ""),
-            "default_resolution": (
-                f"{int(preset.get('default_resolution'))}p"
-                if str(preset.get("default_resolution") or "").strip().isdigit()
-                else str(preset.get("default_resolution") or "")
-            ),
-            "reference_restrictions": ["最多 3 张参考图", "每张图需为单一主体"]
-            if supports_reference_image
-            else [],
-        }
-
     if provider == "volcengine_seedance":
         preset = SEEDANCE_MODEL_PRESETS.get(model_name)
         if not preset:
@@ -139,104 +74,6 @@ def get_video_model_capability(
             "reference_restrictions": ["参考图模式支持 1~4 张图片"]
             if bool(preset.get("supports_reference_image", False))
             else [],
-        }
-
-    if provider == "kling":
-        resolved_model = model_name or DEFAULT_KLING_VIDEO_MODEL
-        preset = get_kling_video_preset(resolved_model)
-        return {
-            "id": (
-                resolved_model
-                if resolved_model in KLING_VIDEO_MODEL_PRESETS
-                else DEFAULT_KLING_VIDEO_MODEL
-            ),
-            "label": str(preset.get("display_name") or DEFAULT_KLING_VIDEO_MODEL),
-            "description": str(preset.get("description") or ""),
-            "supports_t2v": bool(preset.get("supports_t2v", True)),
-            "supports_i2v": bool(preset.get("supports_i2v", True)),
-            "supports_last_frame": bool(preset.get("supports_last_frame", True)),
-            "supports_reference_image": bool(preset.get("supports_reference_image", False)),
-            "supports_combined_reference": bool(preset.get("supports_combined_reference", False)),
-            "max_reference_images": int(preset.get("max_reference_images") or 0),
-            "supported_durations_seconds": _dedupe_positive_ints(
-                [int(item) for item in preset.get("supported_durations") or []]
-            ),
-            "supported_aspect_ratios": _dedupe_non_empty_strings(
-                [str(item) for item in preset.get("aspect_ratios") or []]
-            ),
-            "supported_resolutions": _dedupe_non_empty_strings(
-                [str(item) for item in preset.get("resolutions") or []]
-            ),
-            "default_aspect_ratio": str(preset.get("default_aspect_ratio") or ""),
-            "default_resolution": str(preset.get("default_resolution") or ""),
-            "reference_restrictions": [],
-        }
-
-    if provider == "vidu":
-        resolved_model = model_name or DEFAULT_VIDU_VIDEO_MODEL
-        preset = get_vidu_video_preset(resolved_model)
-        return {
-            "id": (
-                resolved_model
-                if resolved_model in VIDU_VIDEO_MODEL_PRESETS
-                else DEFAULT_VIDU_VIDEO_MODEL
-            ),
-            "label": str(preset.get("display_name") or DEFAULT_VIDU_VIDEO_MODEL),
-            "description": str(preset.get("description") or ""),
-            "supports_t2v": bool(preset.get("supports_t2v", True)),
-            "supports_i2v": bool(preset.get("supports_i2v", True)),
-            "supports_last_frame": bool(preset.get("supports_last_frame", True)),
-            "supports_reference_image": bool(preset.get("supports_reference_image", False)),
-            "supports_combined_reference": bool(preset.get("supports_combined_reference", False)),
-            "max_reference_images": int(preset.get("max_reference_images") or 0),
-            "supported_durations_seconds": _dedupe_positive_ints(
-                [int(item) for item in preset.get("supported_durations") or []]
-            ),
-            "supported_aspect_ratios": _dedupe_non_empty_strings(
-                [str(item) for item in preset.get("aspect_ratios") or []]
-            ),
-            "supported_resolutions": _dedupe_non_empty_strings(
-                [str(item) for item in preset.get("resolutions") or []]
-            ),
-            "default_aspect_ratio": str(preset.get("default_aspect_ratio") or ""),
-            "default_resolution": str(preset.get("default_resolution") or ""),
-            "reference_restrictions": [],
-        }
-
-    if provider == "minimax":
-        resolved_model = model_name or DEFAULT_MINIMAX_VIDEO_MODEL
-        preset = get_minimax_video_preset(resolved_model)
-        resolved_resolution = normalize_minimax_video_resolution(
-            str(preset.get("default_resolution") or "1080P"),
-            default="1080P",
-        )
-        return {
-            "id": (
-                resolved_model
-                if resolved_model in MINIMAX_VIDEO_MODEL_PRESETS
-                else DEFAULT_MINIMAX_VIDEO_MODEL
-            ),
-            "label": str(preset.get("display_name") or DEFAULT_MINIMAX_VIDEO_MODEL),
-            "description": str(preset.get("description") or ""),
-            "supports_t2v": bool(preset.get("supports_t2v", True)),
-            "supports_i2v": bool(preset.get("supports_i2v", True)),
-            "supports_last_frame": bool(preset.get("supports_last_frame", False)),
-            "supports_reference_image": bool(preset.get("supports_reference_image", False)),
-            "supports_combined_reference": bool(preset.get("supports_combined_reference", False)),
-            "max_reference_images": int(preset.get("max_reference_images") or 0),
-            "supported_durations_seconds": get_supported_minimax_video_durations(
-                resolved_model,
-                resolved_resolution,
-            ),
-            "supported_aspect_ratios": _dedupe_non_empty_strings(
-                [str(item) for item in preset.get("aspect_ratios") or []]
-            ),
-            "supported_resolutions": _dedupe_non_empty_strings(
-                [str(item) for item in preset.get("resolutions") or []]
-            ),
-            "default_aspect_ratio": str(preset.get("default_aspect_ratio") or ""),
-            "default_resolution": resolved_resolution,
-            "reference_restrictions": [],
         }
 
     if provider == "wan2gp":
@@ -295,14 +132,10 @@ def get_supported_durations_seconds(
     )
     if supported:
         return supported
-    if provider == "vertex_ai":
-        return [4, 6, 8]
     if provider == "volcengine_seedance":
         return list(range(2, 13))
     if provider == "wan2gp":
         return list(range(2, 13))
-    if provider == "minimax":
-        return get_supported_minimax_video_durations(model, None)
     return []
 
 

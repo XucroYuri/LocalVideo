@@ -1,6 +1,7 @@
 import pytest
 
 from app.api.v1.settings import general as general_module
+from app.providers import video_registry
 from app.schemas.settings import SettingsResponse, SettingsUpdate
 
 LEGACY_VIDEO_PROVIDER_FIELDS = {
@@ -59,6 +60,10 @@ async def test_settings_video_provider_surface_only_exposes_seedance_and_wan2gp(
 def test_settings_contract_excludes_legacy_video_provider_fields() -> None:
     assert LEGACY_VIDEO_PROVIDER_FIELDS.isdisjoint(SettingsResponse.model_fields)
     assert LEGACY_VIDEO_PROVIDER_FIELDS.isdisjoint(SettingsUpdate.model_fields)
+
+
+def test_video_registry_surface_only_keeps_seedance_and_wan2gp() -> None:
+    assert set(video_registry.list_providers()) == {"volcengine_seedance", "wan2gp"}
 
 
 def test_settings_general_output_keeps_only_seedance_and_wan2gp_video_contract(
