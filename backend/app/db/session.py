@@ -1,4 +1,3 @@
-import json
 import os
 from collections.abc import AsyncGenerator
 from functools import lru_cache
@@ -115,12 +114,3 @@ async def init_db():
         credentials_path = str(settings.google_credentials_path or "").strip()
         if credentials_path:
             os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = credentials_path
-            if not settings.video_vertex_ai_project:
-                try:
-                    with open(credentials_path, encoding="utf-8") as f:
-                        cred_data = json.load(f)
-                    project_id = str(cred_data.get("project_id") or "").strip()
-                    if project_id:
-                        settings.video_vertex_ai_project = project_id
-                except Exception:
-                    pass

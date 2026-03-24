@@ -143,13 +143,6 @@ PERSISTABLE_SETTING_KEYS = {
     "image_minimax_enabled_models",
     "image_providers",
     "google_credentials_path",
-    "video_vertex_ai_project",
-    "video_vertex_ai_location",
-    "video_vertex_ai_model",
-    "video_vertex_ai_aspect_ratio",
-    "video_vertex_ai_resolution",
-    "video_vertex_ai_negative_prompt",
-    "video_vertex_ai_enabled_models",
     "video_seedance_api_key",
     "video_seedance_base_url",
     "video_seedance_model",
@@ -193,6 +186,13 @@ PERSISTABLE_SETTING_KEYS = {
 LEGACY_REMOVED_SETTING_KEYS = {
     "audio_wan2gp_sentence_split_every_seconds",
     "audio_wan2gp_anchor_split_every_seconds",
+    "video_vertex_ai_project",
+    "video_vertex_ai_location",
+    "video_vertex_ai_model",
+    "video_vertex_ai_aspect_ratio",
+    "video_vertex_ai_resolution",
+    "video_vertex_ai_negative_prompt",
+    "video_vertex_ai_enabled_models",
 }
 
 

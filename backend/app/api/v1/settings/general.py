@@ -136,7 +136,6 @@ def _apply_google_credentials_path(payload: dict[str, object], raw_path: str | N
     normalized_path = str(raw_path or "").strip()
     payload["google_credentials_path"] = normalized_path or None
     if not normalized_path:
-        payload["video_vertex_ai_project"] = None
         os.environ.pop("GOOGLE_APPLICATION_CREDENTIALS", None)
         return
 
@@ -145,7 +144,7 @@ def _apply_google_credentials_path(payload: dict[str, object], raw_path: str | N
         raise HTTPException(status_code=400, detail="Google 服务账号密钥文件不存在")
 
     try:
-        payload["video_vertex_ai_project"] = _load_google_credentials_project_id(credentials_path)
+        _load_google_credentials_project_id(credentials_path)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
@@ -168,7 +167,6 @@ def _clear_google_credentials() -> None:
             pass
 
     settings.google_credentials_path = None
-    settings.video_vertex_ai_project = None
     os.environ.pop("GOOGLE_APPLICATION_CREDENTIALS", None)
 
 
@@ -2037,8 +2035,7 @@ async def upload_google_credentials(
     if not isinstance(credentials_payload, dict):
         raise HTTPException(status_code=400, detail="服务账号密钥内容必须是 JSON 对象")
 
-    project_id = str(credentials_payload.get("project_id") or "").strip()
-    if not project_id:
+    if not str(credentials_payload.get("project_id") or "").strip():
         raise HTTPException(status_code=400, detail="服务账号密钥缺少 project_id")
 
     credentials_dir = _resolve_google_credentials_dir()
@@ -2060,8 +2057,6 @@ async def upload_google_credentials(
 
     payload: dict[str, object] = {}
     _apply_google_credentials_path(payload, str(destination))
-    payload["video_vertex_ai_project"] = project_id
-
     for key, value in payload.items():
         if hasattr(settings, key):
             setattr(settings, key, value)
@@ -2081,7 +2076,7 @@ async def delete_google_credentials(
     _clear_google_credentials()
 
     store = SettingsStoreService(db)
-    await store.delete_many(("google_credentials_path", "video_vertex_ai_project"))
+    await store.delete_many(("google_credentials_path",))
 
     return _build_settings_response()
 
