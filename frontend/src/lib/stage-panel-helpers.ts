@@ -8,18 +8,6 @@ import type {
 import type { StageConfig } from '@/types/stage-panel'
 import { hasKlingCredentials } from '@/lib/kling'
 
-export interface VertexVideoModelInfo {
-  id: string
-  label: string
-  supportsReferenceImage: boolean
-  supportsCombinedReference: boolean
-  supportsLastFrame: boolean
-  referenceRestrictions: string[]
-}
-
-// Legacy vertex video catalogs are intentionally empty after the Seedance/Wan2GP convergence.
-export const VERTEX_VIDEO_MODELS: readonly VertexVideoModelInfo[] = []
-
 export const CONCURRENCY_OPTIONS = ['1', '2', '4', '8', '16']
 export const SECTION_TITLE_CLASS = 'text-base font-semibold tracking-tight'
 export const BASE_IMAGE_ASPECT_RATIO_OPTIONS = ['1:1', '2:3', '3:2', '3:4', '4:3', '9:16', '16:9', '21:9']
@@ -42,10 +30,6 @@ export const KLING_IMAGE_SIZE_OPTIONS_BY_MODEL: Record<string, string[]> = {
   'kling-v3': ['1K', '2K', '4K'],
   'kling-v3-omni': ['1K', '2K'],
 }
-export const KLING_VIDEO_ASPECT_RATIOS = ['16:9', '9:16', '1:1'] as const
-export const KLING_VIDEO_RESOLUTIONS = ['1080'] as const
-export const VIDU_VIDEO_ASPECT_RATIOS = ['16:9', '9:16', '3:4', '4:3', '1:1'] as const
-export const VIDU_VIDEO_RESOLUTIONS = ['540p', '720p', '1080p'] as const
 
 const GEMINI_FLASH_IMAGE_MODEL = 'gemini-3.1-flash-image-preview'
 
@@ -288,17 +272,6 @@ function getDefaultVideoBinding(
   return { providerId, modelId }
 }
 
-export function getVertexVideoDefaults(
-  settings: Settings | undefined,
-  mode: 't2v' | 'i2v' = 't2v'
-): {
-  model: string
-  aspectRatio: string
-  resolution: string
-} {
-  return getSeedanceVideoDefaults(settings, mode)
-}
-
 export function getSeedanceVideoDefaults(
   settings: Settings | undefined,
   mode: 't2v' | 'i2v' = 't2v'
@@ -321,28 +294,6 @@ export function getSeedanceVideoDefaults(
     aspectRatio: settings.video_seedance_aspect_ratio || 'adaptive',
     resolution: settings.video_seedance_resolution || '720p',
   }
-}
-
-export function getKlingVideoDefaults(
-  settings: Settings | undefined,
-  mode: 't2v' | 'i2v' = 't2v'
-): {
-  model: string
-  aspectRatio: string
-  resolution: string
-} {
-  return getSeedanceVideoDefaults(settings, mode)
-}
-
-export function getViduVideoDefaults(
-  settings: Settings | undefined,
-  mode: 't2v' | 'i2v' = 't2v'
-): {
-  model: string
-  aspectRatio: string
-  resolution: string
-} {
-  return getSeedanceVideoDefaults(settings, mode)
 }
 
 export function getWan2gpVideoDefaults(
