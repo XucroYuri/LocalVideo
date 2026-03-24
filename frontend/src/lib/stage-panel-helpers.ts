@@ -373,15 +373,15 @@ export function getSeedanceVideoDefaults(
   if (defaultBinding?.providerId === 'volcengine_seedance' && defaultBinding.modelId) {
     return {
       model: defaultBinding.modelId,
-      aspectRatio: settings?.video_seedance_aspect_ratio || '9:16',
-      resolution: settings?.video_seedance_resolution || '1080p',
+      aspectRatio: settings?.video_seedance_aspect_ratio || 'adaptive',
+      resolution: settings?.video_seedance_resolution || '720p',
     }
   }
-  if (!settings) return { model: 'seedance-1-5-pro', aspectRatio: '9:16', resolution: '1080p' }
+  if (!settings) return { model: 'seedance-2-0', aspectRatio: 'adaptive', resolution: '720p' }
   return {
-    model: settings.video_seedance_model || 'seedance-1-5-pro',
-    aspectRatio: settings.video_seedance_aspect_ratio || '9:16',
-    resolution: settings.video_seedance_resolution || '1080p',
+    model: settings.video_seedance_model || 'seedance-2-0',
+    aspectRatio: settings.video_seedance_aspect_ratio || 'adaptive',
+    resolution: settings.video_seedance_resolution || '720p',
   }
 }
 

@@ -569,11 +569,7 @@ export interface ProviderVideoModelPreset {
 }
 
 export interface Capabilities {
-  vertex_video_models: VertexVideoModel[]
   seedance_model_presets: SeedanceModelPreset[]
-  kling_model_presets: ProviderVideoModelPreset[]
-  vidu_model_presets: ProviderVideoModelPreset[]
-  minimax_model_presets: ProviderVideoModelPreset[]
   seedance_aspect_ratios: string[]
   seedance_resolutions: string[]
 }

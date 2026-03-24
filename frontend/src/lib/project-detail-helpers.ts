@@ -13,8 +13,10 @@ const KLING_IMAGE_SIZE_OPTIONS_BY_MODEL: Record<string, string[]> = {
 }
 const VIDU_IMAGE_ASPECT_RATIO_OPTIONS = ['16:9', '9:16', '1:1', '3:4', '4:3', '21:9', '2:3', '3:2']
 const VIDU_IMAGE_SIZE_OPTIONS = ['1080p', '2K', '4K']
-const VIDU_VIDEO_ASPECT_RATIO_OPTIONS = ['16:9', '9:16', '3:4', '4:3', '1:1']
-const VIDU_VIDEO_RESOLUTION_OPTIONS = ['540p', '720p', '1080p']
+const DEFAULT_SEEDANCE_MODEL = 'seedance-2-0'
+const DEFAULT_SEEDANCE_ASPECT_RATIO = 'adaptive'
+const DEFAULT_SEEDANCE_RESOLUTION = '720p'
+const DEFAULT_WAN2GP_VIDEO_RESOLUTION = '720x1280'
 
 function getKlingImageSizeOptions(model: string | undefined): string[] {
   return KLING_IMAGE_SIZE_OPTIONS_BY_MODEL[String(model || '').trim().toLowerCase()] || ['1K', '2K', '4K']
@@ -209,7 +211,27 @@ export function getWan2gpVideoI2vPreset(settings: Settings): string {
 }
 
 export function getWan2gpVideoResolution(settings: Settings): string {
-  return settings.video_wan2gp_resolution || '720x1280'
+  return settings.video_wan2gp_resolution || DEFAULT_WAN2GP_VIDEO_RESOLUTION
+}
+
+function deriveWan2gpVideoAspectRatio(resolution: string | undefined): string {
+  const normalized = String(resolution || '').trim().toLowerCase()
+  const match = normalized.match(/^(\d+)\s*x\s*(\d+)$/)
+  if (!match) return '9:16'
+
+  const width = Number(match[1])
+  const height = Number(match[2])
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+    return '9:16'
+  }
+
+  const ratio = width / height
+  if (Math.abs(ratio - 1) < 0.03) return '1:1'
+  if (Math.abs(ratio - (16 / 9)) < 0.03) return '16:9'
+  if (Math.abs(ratio - (9 / 16)) < 0.03) return '9:16'
+  if (Math.abs(ratio - (4 / 3)) < 0.03) return '4:3'
+  if (Math.abs(ratio - (3 / 4)) < 0.03) return '3:4'
+  return ratio >= 1 ? '16:9' : '9:16'
 }
 
 export function getVideoModelByProvider(
@@ -221,61 +243,35 @@ export function getVideoModelByProvider(
   if (binding && (!provider || binding.providerId === provider)) {
     return binding.modelId
   }
+  if (provider === 'wan2gp') {
+    return mode === 'i2v'
+      ? getWan2gpVideoI2vPreset(settings)
+      : getWan2gpVideoT2vPreset(settings)
+  }
   if (provider === 'volcengine_seedance') {
-    return settings.video_seedance_model || 'seedance-1-5-pro'
+    return settings.video_seedance_model || DEFAULT_SEEDANCE_MODEL
   }
-  if (provider === 'kling') {
-    return settings.video_kling_model || 'kling-v3'
-  }
-  if (provider === 'vidu') {
-    return settings.video_vidu_model || 'viduq3-turbo'
-  }
-  const supportedVertexModels = new Set([
-    'veo-3.1',
-    'veo-3.1-fast',
-    'veo-3.1-preview',
-    'veo-3.1-fast-preview',
-  ])
-  const candidate = String(settings.video_vertex_ai_model || '').trim()
-  return supportedVertexModels.has(candidate) ? candidate : 'veo-3.1-fast-preview'
+  return settings.video_seedance_model || DEFAULT_SEEDANCE_MODEL
 }
 
 export function getVideoAspectRatioByProvider(provider: string | undefined, settings: Settings): string {
+  if (provider === 'wan2gp') {
+    return deriveWan2gpVideoAspectRatio(getWan2gpVideoResolution(settings))
+  }
   if (provider === 'volcengine_seedance') {
-    return settings.video_seedance_aspect_ratio || '9:16'
+    return settings.video_seedance_aspect_ratio || DEFAULT_SEEDANCE_ASPECT_RATIO
   }
-  if (provider === 'kling') {
-    const ratio = String(settings.video_kling_aspect_ratio || '').trim()
-    if (ratio === '16:9' || ratio === '9:16' || ratio === '1:1') return ratio
-    return '9:16'
-  }
-  if (provider === 'vidu') {
-    const ratio = String(settings.video_vidu_aspect_ratio || '').trim()
-    if (VIDU_VIDEO_ASPECT_RATIO_OPTIONS.includes(ratio)) return ratio
-    return '9:16'
-  }
-  return settings.video_vertex_ai_aspect_ratio || '16:9'
+  return settings.video_seedance_aspect_ratio || DEFAULT_SEEDANCE_ASPECT_RATIO
 }
 
 export function getVideoResolutionByProvider(provider: string | undefined, settings: Settings): string {
+  if (provider === 'wan2gp') {
+    return getWan2gpVideoResolution(settings)
+  }
   if (provider === 'volcengine_seedance') {
-    return settings.video_seedance_resolution || '1080p'
+    return settings.video_seedance_resolution || DEFAULT_SEEDANCE_RESOLUTION
   }
-  if (provider === 'kling') {
-    return '1080'
-  }
-  if (provider === 'vidu') {
-    const raw = String(settings.video_vidu_resolution || '').trim().toLowerCase()
-    const resolution = raw === '540' || raw === '540p'
-      ? '540p'
-      : raw === '720' || raw === '720p'
-        ? '720p'
-        : raw === '1080' || raw === '1080p'
-          ? '1080p'
-          : '1080p'
-    return VIDU_VIDEO_RESOLUTION_OPTIONS.includes(resolution) ? resolution : '1080p'
-  }
-  return settings.video_vertex_ai_resolution || '1080'
+  return settings.video_seedance_resolution || DEFAULT_SEEDANCE_RESOLUTION
 }
 
 export function getWan2gpAudioPreset(settings: Settings): string {
