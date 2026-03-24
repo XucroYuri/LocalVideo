@@ -1,7 +1,10 @@
 import httpx
 import pytest
 
-from app.api.v1.capabilities import SEEDANCE_MODEL_PRESETS as API_SEEDANCE_MODEL_PRESETS
+from app.api.v1.capabilities import (
+    SEEDANCE_MODEL_PRESETS as API_SEEDANCE_MODEL_PRESETS,
+)
+from app.api.v1.capabilities import get_capabilities
 from app.config import Settings
 from app.providers.video.volcengine_seedance import (
     VolcengineSeedanceVideoProvider,
@@ -78,6 +81,18 @@ def test_capabilities_catalog_exposes_seedance_2_0_family_first() -> None:
     ids = [item.id for item in API_SEEDANCE_MODEL_PRESETS]
 
     assert ids[:2] == ["seedance-2-0", "seedance-2-0-fast"]
+
+
+@pytest.mark.asyncio
+async def test_capabilities_response_only_exposes_active_video_surface() -> None:
+    response = await get_capabilities()
+    payload = response.model_dump()
+
+    assert set(payload.keys()) == {
+        "seedance_model_presets",
+        "seedance_aspect_ratios",
+        "seedance_resolutions",
+    }
 
 
 @pytest.mark.asyncio
