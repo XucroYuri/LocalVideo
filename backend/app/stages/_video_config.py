@@ -13,14 +13,12 @@ class VideoConfigResolver:
     audio_gap_seconds: float
     max_concurrency: int
     effective_video_fit_mode: str
-    vertex_resolution: int
     wan2gp_resolution: str
     wan2gp_t2v_preset: str
     wan2gp_i2v_preset: str
     wan2gp_inference_steps: int
     wan2gp_sliding_window_size: int
     wan2gp_negative_prompt: str
-    vertex_negative_prompt: str
     provider_kwargs: dict[str, Any]
 
     @classmethod
@@ -83,13 +81,6 @@ class VideoConfigResolver:
         )
         effective_video_fit_mode = "scale" if single_take_enabled else requested_video_fit_mode
 
-        vertex_resolution = 0
-        if resolution_value:
-            try:
-                vertex_resolution = int(str(resolution_value).replace("p", "").strip())
-            except ValueError:
-                vertex_resolution = 0
-
         wan2gp_resolution = (
             stage_input.get("video_wan2gp_resolution")
             or (
@@ -143,15 +134,6 @@ class VideoConfigResolver:
             wan2gp_fit_canvas = 0
 
         wan2gp_negative_prompt = settings.video_wan2gp_negative_prompt
-        vertex_negative_prompt = str(
-            stage_input.get("video_vertex_ai_negative_prompt")
-            if stage_input.get("video_vertex_ai_negative_prompt") is not None
-            else (
-                config.get("video_vertex_ai_negative_prompt") if isinstance(config, dict) else None
-            )
-            or settings.video_vertex_ai_negative_prompt
-            or ""
-        ).strip()
 
         provider_kwargs: dict[str, Any]
         if video_provider_name == "volcengine_seedance":
@@ -189,13 +171,11 @@ class VideoConfigResolver:
             audio_gap_seconds=audio_gap_seconds,
             max_concurrency=max_concurrency,
             effective_video_fit_mode=effective_video_fit_mode,
-            vertex_resolution=vertex_resolution,
             wan2gp_resolution=wan2gp_resolution,
             wan2gp_t2v_preset=wan2gp_t2v_preset,
             wan2gp_i2v_preset=wan2gp_i2v_preset,
             wan2gp_inference_steps=wan2gp_inference_steps,
             wan2gp_sliding_window_size=wan2gp_sliding_window_size,
             wan2gp_negative_prompt=wan2gp_negative_prompt,
-            vertex_negative_prompt=vertex_negative_prompt,
             provider_kwargs=provider_kwargs,
         )
