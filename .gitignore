@@ -1,0 +1,79 @@
+# ====================
+# Backend (Python)
+# ====================
+backend/.venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/*.pyc
+backend/.ruff_cache/
+backend/.pytest_cache/
+backend/*.db
+backend/*.db-wal
+backend/*.db-shm
+backend/credentials/
+backend/storage/*
+!backend/storage/voice-library/
+backend/storage/voice-library/*
+!backend/storage/voice-library/builtin/
+!backend/storage/voice-library/builtin/**
+backend/storage/voice-library/uploads/
+!backend/storage/reference-library/
+backend/storage/reference-library/*
+!backend/storage/reference-library/builtin/
+!backend/storage/reference-library/builtin/**
+backend/storage/reference-library/uploads/
+
+# ====================
+# Frontend (Next.js)
+# ====================
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/.pnp
+frontend/.pnp.*
+frontend/.yarn/*
+!frontend/.yarn/patches
+!frontend/.yarn/plugins
+!frontend/.yarn/releases
+!frontend/.yarn/versions
+frontend/coverage/
+frontend/*.tsbuildinfo
+frontend/.vercel
+frontend/playwright-report/
+frontend/test-results/
+frontend/public/assets/voice-library/uploads/
+
+# ====================
+# IDE & System
+# ====================
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ====================
+# Logs
+# ====================
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# ====================
+# Misc
+# ====================
+.env.docker
+*.pem
+AGENTS.md
+CLAUDE.md
+prompt.txt
+revision_record.txt
+backend/scripts/*.json
+temp
+
+# Terminal Paste Image folder
+.cp-images/

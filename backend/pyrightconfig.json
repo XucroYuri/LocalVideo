@@ -1,0 +1,31 @@
+{
+  "$schema": "https://raw.githubusercontent.com/DetachHead/basedpyright/main/packages/vscode-pyright/schemas/pyrightconfig.schema.json",
+  "pythonVersion": "3.11",
+  "typeCheckingMode": "basic",
+  "include": [
+    "app/config.py",
+    "app/db/session.py",
+    "app/models/base.py",
+    "app/models/app_setting.py",
+    "app/providers/kling_auth.py"
+  ],
+  "exclude": [
+    ".venv",
+    "alembic",
+    "storage"
+  ],
+  "reportAny": false,
+  "reportCallInDefaultInitializer": false,
+  "reportExplicitAny": false,
+  "reportImplicitStringConcatenation": false,
+  "reportImportCycles": false,
+  "reportMissingParameterType": false,
+  "reportUnknownArgumentType": false,
+  "reportUnknownMemberType": false,
+  "reportUnknownParameterType": false,
+  "reportUnknownVariableType": false,
+  "reportUnannotatedClassAttribute": false,
+  "reportUnusedFunction": false,
+  "reportUnusedImport": false,
+  "reportUnusedParameter": false
+}

@@ -1,0 +1,109 @@
+services:
+  backend-cpu:
+    profiles: ["cpu"]
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+      target: backend-cpu
+      args:
+        TIKTOK_DOWNLOADER_REF: ${TIKTOK_DOWNLOADER_REF:-d9c12687d9178493e063a4461fe0e5b438a915a2}
+        XHS_DOWNLOADER_REF: ${XHS_DOWNLOADER_REF:-a520e319ef95852498f9bc19b4c885155856960f}
+        KS_DOWNLOADER_REF: ${KS_DOWNLOADER_REF:-f4135b0233860bfc6f6bf0d00b165a5ff40204fa}
+    environment:
+      DEPLOYMENT_PROFILE: cpu
+      XHS_DOWNLOADER_PATH: /opt/localvideo/external/XHS-Downloader
+      TIKTOK_DOWNLOADER_PATH: /opt/localvideo/external/TikTokDownloader
+      KS_DOWNLOADER_PATH: /opt/localvideo/external/KS-Downloader
+      DATABASE_URL: sqlite+aiosqlite:////data/app.db
+      STORAGE_PATH: /data/storage
+      TZ: ${TZ:-Asia/Shanghai}
+      HF_HOME: /data/cache/huggingface
+      HUGGINGFACE_HUB_CACHE: /data/cache/huggingface/hub
+      TRANSFORMERS_CACHE: /data/cache/huggingface/transformers
+      TORCH_HOME: /data/cache/torch
+      TEXT_OPENAI_API_KEY: ${TEXT_OPENAI_API_KEY:-}
+      IMAGE_OPENAI_API_KEY: ${IMAGE_OPENAI_API_KEY:-}
+      IMAGE_GEMINI_API_KEY: ${IMAGE_GEMINI_API_KEY:-}
+      SEARCH_TAVILY_API_KEY: ${SEARCH_TAVILY_API_KEY:-}
+      JINA_READER_API_KEY: ${JINA_READER_API_KEY:-}
+      GOOGLE_CREDENTIALS_PATH: ${GOOGLE_CREDENTIALS_PATH:-}
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - localvideo-data:/data
+    networks:
+      default:
+        aliases:
+          - backend
+    restart: unless-stopped
+
+  backend-gpu:
+    profiles: ["gpu"]
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+      target: backend-gpu
+      args:
+        WAN2GP_REF: ${WAN2GP_REF:-805e110e3b2da311edf88235b39238e2f7b290f9}
+        TIKTOK_DOWNLOADER_REF: ${TIKTOK_DOWNLOADER_REF:-d9c12687d9178493e063a4461fe0e5b438a915a2}
+        XHS_DOWNLOADER_REF: ${XHS_DOWNLOADER_REF:-a520e319ef95852498f9bc19b4c885155856960f}
+        KS_DOWNLOADER_REF: ${KS_DOWNLOADER_REF:-f4135b0233860bfc6f6bf0d00b165a5ff40204fa}
+        WAN2GP_PYTHON_VERSION: ${WAN2GP_PYTHON_VERSION:-3.10.9}
+        TORCH_CUDA_INDEX_URL: ${TORCH_CUDA_INDEX_URL:-https://download.pytorch.org/whl/cu128}
+        TORCH_VERSION: ${TORCH_VERSION:-2.7.1}
+        TORCHVISION_VERSION: ${TORCHVISION_VERSION:-0.22.1}
+        TORCHAUDIO_VERSION: ${TORCHAUDIO_VERSION:-2.7.1}
+    environment:
+      DEPLOYMENT_PROFILE: gpu
+      WAN2GP_PATH: /opt/localvideo/external/Wan2GP
+      LOCAL_MODEL_PYTHON_PATH: /opt/localvideo/runtime310/bin/python
+      XHS_DOWNLOADER_PATH: /opt/localvideo/external/XHS-Downloader
+      TIKTOK_DOWNLOADER_PATH: /opt/localvideo/external/TikTokDownloader
+      KS_DOWNLOADER_PATH: /opt/localvideo/external/KS-Downloader
+      DATABASE_URL: sqlite+aiosqlite:////data/app.db
+      STORAGE_PATH: /data/storage
+      TZ: ${TZ:-Asia/Shanghai}
+      HF_HOME: /data/cache/huggingface
+      HUGGINGFACE_HUB_CACHE: /data/cache/huggingface/hub
+      TRANSFORMERS_CACHE: /data/cache/huggingface/transformers
+      TORCH_HOME: /data/cache/torch
+      NVIDIA_VISIBLE_DEVICES: ${NVIDIA_VISIBLE_DEVICES:-all}
+      NVIDIA_DRIVER_CAPABILITIES: ${NVIDIA_DRIVER_CAPABILITIES:-compute,utility,video}
+      TEXT_OPENAI_API_KEY: ${TEXT_OPENAI_API_KEY:-}
+      IMAGE_OPENAI_API_KEY: ${IMAGE_OPENAI_API_KEY:-}
+      IMAGE_GEMINI_API_KEY: ${IMAGE_GEMINI_API_KEY:-}
+      SEARCH_TAVILY_API_KEY: ${SEARCH_TAVILY_API_KEY:-}
+      JINA_READER_API_KEY: ${JINA_READER_API_KEY:-}
+      GOOGLE_CREDENTIALS_PATH: ${GOOGLE_CREDENTIALS_PATH:-}
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - localvideo-data:/data
+      - localvideo-wan2gp-ckpts:/opt/localvideo/external/Wan2GP/ckpts
+    networks:
+      default:
+        aliases:
+          - backend
+    restart: unless-stopped
+    gpus:
+      - driver: nvidia
+        count: all
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:${BACKEND_PORT:-8000}/api/v1}
+        INTERNAL_API_URL: ${INTERNAL_API_URL:-http://backend:8000/api/v1}
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:${BACKEND_PORT:-8000}/api/v1}
+      INTERNAL_API_URL: ${INTERNAL_API_URL:-http://backend:8000/api/v1}
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    restart: unless-stopped
+
+volumes:
+  localvideo-data:
+  localvideo-wan2gp-ckpts:

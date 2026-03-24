@@ -1,0 +1,25 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-merge-conflict
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-yaml
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.2
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+        files: ^backend/
+      - id: ruff-format
+        files: ^backend/
+
+  - repo: local
+    hooks:
+      - id: frontend-eslint
+        name: frontend-eslint
+        entry: bash -lc 'args=(); for file in "$@"; do args+=("${file#frontend/}"); done; cd frontend && pnpm exec eslint --no-cache "${args[@]}"' --
+        language: system
+        files: ^frontend/

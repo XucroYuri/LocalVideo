@@ -1,0 +1,104 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.11"
+
+      - name: Sync Backend Dependencies
+        run: uv sync --extra dev
+
+      - name: Lint Backend
+        run: uv run --with ruff==0.15.2 ruff check .
+
+      - name: Typecheck Backend
+        run: uv run --with basedpyright==1.38.2 basedpyright --project pyrightconfig.json
+
+      - name: Run Backend Tests
+        run: uv run --with pytest pytest
+
+      - name: Verify Alembic Schema Path
+        env:
+          DATABASE_URL: sqlite+aiosqlite:////tmp/localvideo-ci.db
+        run: |
+          rm -f /tmp/localvideo-ci.db
+          uv run alembic upgrade head
+          uv run python - <<'PY'
+          import asyncio
+          from app.db.session import init_db
+
+          asyncio.run(init_db())
+          print("schema check ok")
+          PY
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install Frontend Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint Frontend
+        run: pnpm lint
+
+      - name: Build Frontend
+        run: pnpm build
+
+  frontend-e2e:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install Frontend Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright Browser
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run Playwright Smoke Tests
+        run: pnpm test:e2e

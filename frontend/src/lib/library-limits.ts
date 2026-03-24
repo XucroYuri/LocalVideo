@@ -1,0 +1,1 @@
+export const LIBRARY_BATCH_MAX_ITEMS = 50

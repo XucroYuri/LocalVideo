@@ -1,0 +1,52 @@
+services:
+  backend-cpu:
+    volumes:
+      - ./backend:/app/backend
+      - ./docker/backend-entrypoint.sh:/app/docker/backend-entrypoint.sh:ro
+      - backend-venv-cpu:/app/backend/.venv
+      - localvideo-data:/data
+    environment:
+      BACKEND_DEV_MODE: "true"
+      WATCHFILES_FORCE_POLLING: ${WATCHFILES_FORCE_POLLING:-true}
+    entrypoint:
+      - /bin/bash
+      - /app/docker/backend-entrypoint.sh
+
+  backend-gpu:
+    volumes:
+      - ./backend:/app/backend
+      - ./docker/backend-entrypoint.sh:/app/docker/backend-entrypoint.sh:ro
+      - backend-venv-gpu:/app/backend/.venv
+      - localvideo-data:/data
+      - localvideo-wan2gp-ckpts:/opt/localvideo/external/Wan2GP/ckpts
+    environment:
+      BACKEND_DEV_MODE: "true"
+      WATCHFILES_FORCE_POLLING: ${WATCHFILES_FORCE_POLLING:-true}
+    entrypoint:
+      - /bin/bash
+      - /app/docker/backend-entrypoint.sh
+
+  frontend:
+    build:
+      dockerfile: Dockerfile.frontend
+      args:
+        FRONTEND_MODE: development
+    volumes:
+      - ./frontend:/app/frontend
+      - frontend-node-modules:/app/frontend/node_modules
+      - frontend-next:/app/frontend/.next
+      - frontend-pnpm-store:/pnpm/store
+    environment:
+      CI: "true"
+      NODE_ENV: development
+      npm_config_store_dir: /pnpm/store
+      WATCHPACK_POLLING: ${WATCHPACK_POLLING:-true}
+      CHOKIDAR_USEPOLLING: ${CHOKIDAR_USEPOLLING:-true}
+
+volumes:
+  backend-venv-cpu:
+  backend-venv-gpu:
+  frontend-node-modules:
+  frontend-next:
+  frontend-pnpm-store:
+  localvideo-wan2gp-ckpts:

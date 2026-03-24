@@ -1,0 +1,227 @@
+from collections.abc import Iterable
+from typing import Any
+
+from sqlalchemy import delete, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.app_setting import AppSetting
+
+PERSISTABLE_SETTING_KEYS = {
+    "search_tavily_api_key",
+    "jina_reader_api_key",
+    "jina_reader_ignore_images",
+    "web_url_parser_provider",
+    "crawl4ai_ignore_images",
+    "crawl4ai_ignore_links",
+    "text_openai_api_key",
+    "text_openai_base_url",
+    "text_openai_model",
+    "edge_tts_voice",
+    "edge_tts_rate",
+    "volcengine_tts_app_key",
+    "volcengine_tts_access_key",
+    "volcengine_tts_resource_id",
+    "volcengine_tts_model_name",
+    "audio_volcengine_tts_voice_type",
+    "audio_volcengine_tts_speed_ratio",
+    "audio_volcengine_tts_volume_ratio",
+    "audio_volcengine_tts_pitch_ratio",
+    "audio_volcengine_tts_encoding",
+    "audio_wan2gp_preset",
+    "audio_wan2gp_model_mode",
+    "audio_wan2gp_alt_prompt",
+    "audio_wan2gp_duration_seconds",
+    "audio_wan2gp_temperature",
+    "audio_wan2gp_top_k",
+    "audio_wan2gp_seed",
+    "audio_wan2gp_audio_guide",
+    "audio_wan2gp_speed",
+    "audio_wan2gp_split_strategy",
+    "kling_access_key",
+    "kling_secret_key",
+    "kling_base_url",
+    "audio_kling_voice_id",
+    "audio_kling_voice_language",
+    "audio_kling_voice_speed",
+    "vidu_api_key",
+    "vidu_base_url",
+    "audio_vidu_voice_id",
+    "audio_vidu_speed",
+    "audio_vidu_volume",
+    "audio_vidu_pitch",
+    "audio_vidu_emotion",
+    "minimax_api_key",
+    "minimax_base_url",
+    "audio_minimax_model",
+    "audio_minimax_voice_id",
+    "audio_minimax_speed",
+    "xiaomi_mimo_api_key",
+    "xiaomi_mimo_base_url",
+    "audio_xiaomi_mimo_voice",
+    "audio_xiaomi_mimo_style_preset",
+    "audio_xiaomi_mimo_speed",
+    "audio_xiaomi_mimo_format",
+    "deployment_profile",
+    "wan2gp_path",
+    "local_model_python_path",
+    "wan2gp_fit_canvas",
+    "xhs_downloader_path",
+    "tiktok_downloader_path",
+    "ks_downloader_path",
+    "speech_volcengine_app_key",
+    "speech_volcengine_access_key",
+    "speech_volcengine_resource_id",
+    "speech_volcengine_language",
+    "faster_whisper_model",
+    "dialogue_script_max_roles",
+    "wan2gp_validation_status",
+    "xhs_downloader_validation_status",
+    "tiktok_downloader_validation_status",
+    "ks_downloader_validation_status",
+    "faster_whisper_validation_status",
+    "speech_volcengine_validation_status",
+    "crawl4ai_validation_status",
+    "card_scheduler_max_concurrent_tasks",
+    "card_scheduler_url_parse_concurrency",
+    "card_scheduler_video_download_concurrency",
+    "card_scheduler_audio_transcribe_concurrency",
+    "card_scheduler_audio_prepare_concurrency",
+    "card_scheduler_audio_proofread_concurrency",
+    "card_scheduler_audio_name_concurrency",
+    "card_scheduler_text_proofread_concurrency",
+    "card_scheduler_text_name_concurrency",
+    "card_scheduler_reference_describe_concurrency",
+    "card_scheduler_reference_name_concurrency",
+    "image_openai_api_key",
+    "image_openai_base_url",
+    "image_openai_model",
+    "image_openai_reference_aspect_ratio",
+    "image_openai_reference_size",
+    "image_openai_frame_aspect_ratio",
+    "image_openai_frame_size",
+    "image_vertex_ai_project",
+    "image_vertex_ai_location",
+    "image_vertex_ai_model",
+    "image_vertex_ai_reference_aspect_ratio",
+    "image_vertex_ai_reference_size",
+    "image_vertex_ai_frame_aspect_ratio",
+    "image_vertex_ai_frame_size",
+    "image_gemini_api_key",
+    "image_gemini_model",
+    "image_gemini_reference_aspect_ratio",
+    "image_gemini_reference_size",
+    "image_gemini_frame_aspect_ratio",
+    "image_gemini_frame_size",
+    "image_wan2gp_preset",
+    "image_wan2gp_preset_i2i",
+    "image_wan2gp_reference_resolution",
+    "image_wan2gp_frame_resolution",
+    "image_wan2gp_inference_steps",
+    "image_wan2gp_guidance_scale",
+    "image_wan2gp_seed",
+    "image_wan2gp_negative_prompt",
+    "image_wan2gp_enabled_models",
+    "image_kling_t2i_model",
+    "image_kling_i2i_model",
+    "image_kling_reference_aspect_ratio",
+    "image_kling_reference_size",
+    "image_kling_frame_aspect_ratio",
+    "image_kling_frame_size",
+    "image_kling_enabled_models",
+    "image_vidu_t2i_model",
+    "image_vidu_i2i_model",
+    "image_vidu_reference_aspect_ratio",
+    "image_vidu_reference_size",
+    "image_vidu_frame_aspect_ratio",
+    "image_vidu_frame_size",
+    "image_vidu_enabled_models",
+    "image_minimax_model",
+    "image_minimax_reference_aspect_ratio",
+    "image_minimax_reference_size",
+    "image_minimax_frame_aspect_ratio",
+    "image_minimax_frame_size",
+    "image_minimax_enabled_models",
+    "image_providers",
+    "google_credentials_path",
+    "video_vertex_ai_project",
+    "video_vertex_ai_location",
+    "video_vertex_ai_model",
+    "video_vertex_ai_aspect_ratio",
+    "video_vertex_ai_resolution",
+    "video_vertex_ai_negative_prompt",
+    "video_vertex_ai_enabled_models",
+    "video_seedance_api_key",
+    "video_seedance_base_url",
+    "video_seedance_model",
+    "video_seedance_aspect_ratio",
+    "video_seedance_resolution",
+    "video_seedance_watermark",
+    "video_seedance_enabled_models",
+    "video_wan2gp_t2v_preset",
+    "video_wan2gp_i2v_preset",
+    "video_wan2gp_resolution",
+    "video_wan2gp_negative_prompt",
+    "video_wan2gp_enabled_models",
+    "video_kling_model",
+    "video_kling_aspect_ratio",
+    "video_kling_mode",
+    "video_vidu_model",
+    "video_vidu_aspect_ratio",
+    "video_vidu_resolution",
+    "video_vidu_enabled_models",
+    "video_minimax_model",
+    "video_minimax_aspect_ratio",
+    "video_minimax_resolution",
+    "video_minimax_enabled_models",
+    "llm_providers",
+    "default_llm_provider",
+    "default_search_provider",
+    "default_audio_provider",
+    "default_speech_recognition_provider",
+    "default_image_provider",
+    "default_video_provider",
+    "default_speech_recognition_model",
+    "default_general_llm_model",
+    "default_fast_llm_model",
+    "default_multimodal_llm_model",
+    "default_image_t2i_model",
+    "default_image_i2i_model",
+    "default_video_t2v_model",
+    "default_video_i2v_model",
+}
+
+LEGACY_REMOVED_SETTING_KEYS = {
+    "audio_wan2gp_sentence_split_every_seconds",
+    "audio_wan2gp_anchor_split_every_seconds",
+}
+
+
+class SettingsStoreService:
+    def __init__(self, db: AsyncSession):
+        self.db = db
+
+    async def get_many(self, keys: Iterable[str]) -> dict[str, Any]:
+        key_list = list(keys)
+        if not key_list:
+            return {}
+        result = await self.db.execute(select(AppSetting).where(AppSetting.key.in_(key_list)))
+        rows = result.scalars().all()
+        return {row.key: row.value for row in rows}
+
+    async def upsert_many(self, data: dict[str, Any]) -> None:
+        for key, value in data.items():
+            result = await self.db.execute(select(AppSetting).where(AppSetting.key == key))
+            row = result.scalar_one_or_none()
+            if row is None:
+                row = AppSetting(key=key, value=value)
+                self.db.add(row)
+            else:
+                row.value = value
+        await self.db.commit()
+
+    async def delete_many(self, keys: Iterable[str]) -> None:
+        key_list = list({str(key).strip() for key in keys if str(key).strip()})
+        if not key_list:
+            return
+        await self.db.execute(delete(AppSetting).where(AppSetting.key.in_(key_list)))
+        await self.db.commit()

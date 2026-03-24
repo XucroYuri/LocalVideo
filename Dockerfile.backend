@@ -1,0 +1,343 @@
+# syntax=docker/dockerfile:1.7
+
+ARG DEBIAN_FRONTEND=noninteractive
+ARG PYTHON_BASE_IMAGE=python:3.11-slim-bookworm
+ARG CUDA_BASE_IMAGE=nvidia/cuda:12.8.1-cudnn-runtime-ubuntu24.04
+ARG WAN2GP_REPO=https://github.com/deepbeepmeep/Wan2GP
+ARG TIKTOK_DOWNLOADER_REPO=https://github.com/JoeanAmier/TikTokDownloader
+ARG XHS_DOWNLOADER_REPO=https://github.com/JoeanAmier/XHS-Downloader
+ARG KS_DOWNLOADER_REPO=https://github.com/JoeanAmier/KS-Downloader
+ARG WAN2GP_REF=805e110e3b2da311edf88235b39238e2f7b290f9
+ARG TIKTOK_DOWNLOADER_REF=d9c12687d9178493e063a4461fe0e5b438a915a2
+ARG XHS_DOWNLOADER_REF=a520e319ef95852498f9bc19b4c885155856960f
+ARG KS_DOWNLOADER_REF=f4135b0233860bfc6f6bf0d00b165a5ff40204fa
+ARG WAN2GP_PYTHON_VERSION=3.10.9
+ARG TORCH_CUDA_INDEX_URL=https://download.pytorch.org/whl/cu128
+ARG TORCH_VERSION=2.7.1
+ARG TORCHVISION_VERSION=0.22.1
+ARG TORCHAUDIO_VERSION=2.7.1
+
+FROM ${PYTHON_BASE_IMAGE} AS external-sources
+
+ARG DEBIAN_FRONTEND
+ARG WAN2GP_REPO
+ARG TIKTOK_DOWNLOADER_REPO
+ARG XHS_DOWNLOADER_REPO
+ARG KS_DOWNLOADER_REPO
+ARG WAN2GP_REF
+ARG TIKTOK_DOWNLOADER_REF
+ARG XHS_DOWNLOADER_REF
+ARG KS_DOWNLOADER_REF
+
+ENV LOCALVIDEO_EXTERNAL_ROOT=/opt/localvideo/external \
+    WAN2GP_PATH=/opt/localvideo/external/Wan2GP \
+    XHS_DOWNLOADER_PATH=/opt/localvideo/external/XHS-Downloader \
+    TIKTOK_DOWNLOADER_PATH=/opt/localvideo/external/TikTokDownloader \
+    KS_DOWNLOADER_PATH=/opt/localvideo/external/KS-Downloader
+
+RUN --mount=type=cache,id=localvideo-apt-debian-cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,id=localvideo-apt-debian-lists,target=/var/lib/apt/lists,sharing=locked \
+    apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    git
+
+RUN set -eux; \
+    mkdir -p "${LOCALVIDEO_EXTERNAL_ROOT}"; \
+    clone_repo() { \
+        repo_url="$1"; \
+        repo_dir="$2"; \
+        repo_ref="$3"; \
+        git clone "${repo_url}" "${repo_dir}"; \
+        git -C "${repo_dir}" checkout "${repo_ref}"; \
+    }; \
+    clone_repo "${WAN2GP_REPO}" "${WAN2GP_PATH}" "${WAN2GP_REF}"; \
+    clone_repo "${TIKTOK_DOWNLOADER_REPO}" "${TIKTOK_DOWNLOADER_PATH}" "${TIKTOK_DOWNLOADER_REF}"; \
+    clone_repo "${XHS_DOWNLOADER_REPO}" "${XHS_DOWNLOADER_PATH}" "${XHS_DOWNLOADER_REF}"; \
+    clone_repo "${KS_DOWNLOADER_REPO}" "${KS_DOWNLOADER_PATH}" "${KS_DOWNLOADER_REF}"
+
+FROM ${PYTHON_BASE_IMAGE} AS cpu-runtime-base
+
+ARG DEBIAN_FRONTEND
+
+ENV LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8 \
+    TZ=Asia/Shanghai \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    CC=/usr/bin/gcc \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    UV_LINK_MODE=copy \
+    UV_COMPILE_BYTECODE=1 \
+    UV_CACHE_DIR=/opt/uv-cache \
+    UV_PYTHON_INSTALL_DIR=/opt/uv-python \
+    LOCALVIDEO_EXTERNAL_ROOT=/opt/localvideo/external \
+    CRAWL4_AI_BASE_DIRECTORY=/opt/localvideo/crawl4ai-home \
+    PLAYWRIGHT_BROWSERS_PATH=/opt/localvideo/playwright-browsers \
+    XHS_DOWNLOADER_PATH=/opt/localvideo/external/XHS-Downloader \
+    TIKTOK_DOWNLOADER_PATH=/opt/localvideo/external/TikTokDownloader \
+    KS_DOWNLOADER_PATH=/opt/localvideo/external/KS-Downloader \
+    LOCALVIDEO_RUNTIME_ENV=docker \
+    DEPLOYMENT_PROFILE=cpu \
+    DATABASE_URL=sqlite+aiosqlite:////data/app.db \
+    STORAGE_PATH=/data/storage \
+    HF_HOME=/data/cache/huggingface \
+    HUGGINGFACE_HUB_CACHE=/data/cache/huggingface/hub \
+    TRANSFORMERS_CACHE=/data/cache/huggingface/transformers \
+    TORCH_HOME=/data/cache/torch \
+    GIT_PYTHON_GIT_EXECUTABLE=/usr/bin/git \
+    PATH=/root/.local/bin:/app/backend/.venv/bin:${PATH}
+
+RUN --mount=type=cache,id=localvideo-apt-debian-cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,id=localvideo-apt-debian-lists,target=/var/lib/apt/lists,sharing=locked \
+    apt-get update && apt-get install -y --no-install-recommends \
+    bash \
+    ca-certificates \
+    curl \
+    ffmpeg \
+    fonts-liberation \
+    fonts-noto-cjk \
+    libasound2 \
+    libatk-bridge2.0-0 \
+    libgbm1 \
+    libgl1 \
+    libglib2.0-0 \
+    libgomp1 \
+    libgtk-3-0 \
+    libnspr4 \
+    libnss3 \
+    libsm6 \
+    libsndfile1 \
+    tzdata \
+    libx11-6 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxext6 \
+    libxfixes3 \
+    libxkbcommon0 \
+    libxrandr2 \
+    libxrender1
+
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+
+RUN ln -snf /usr/share/zoneinfo/${TZ} /etc/localtime && echo ${TZ} > /etc/timezone
+
+FROM cpu-runtime-base AS cpu-build-base
+
+RUN --mount=type=cache,id=localvideo-apt-debian-cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,id=localvideo-apt-debian-lists,target=/var/lib/apt/lists,sharing=locked \
+    apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    git \
+    pkg-config
+
+FROM cpu-build-base AS cpu-deps
+
+WORKDIR /app/backend
+
+COPY --link backend/pyproject.toml backend/uv.lock backend/README.md /app/backend/
+COPY --from=external-sources /opt/localvideo/external/TikTokDownloader /opt/localvideo/external/TikTokDownloader
+COPY --from=external-sources /opt/localvideo/external/XHS-Downloader /opt/localvideo/external/XHS-Downloader
+COPY --from=external-sources /opt/localvideo/external/KS-Downloader /opt/localvideo/external/KS-Downloader
+
+RUN --mount=type=cache,id=localvideo-uv-cache,target=/opt/uv-cache,sharing=locked \
+    --mount=type=cache,id=localvideo-playwright-cache,target=/tmp/playwright-browsers-cache,sharing=locked \
+    set -eux; \
+    uv sync --frozen --no-dev --no-install-project --python 3.11; \
+    CRAWL4AI_MODE=api uv run crawl4ai-setup; \
+    rm -rf "${PLAYWRIGHT_BROWSERS_PATH}"; \
+    PLAYWRIGHT_BROWSERS_PATH=/tmp/playwright-browsers-cache \
+        uv run python -m playwright install --force chromium; \
+    PLAYWRIGHT_BROWSERS_PATH=/tmp/playwright-browsers-cache \
+        uv run python -m patchright install --force chromium; \
+    mkdir -p "${PLAYWRIGHT_BROWSERS_PATH}"; \
+    cp -a /tmp/playwright-browsers-cache/. "${PLAYWRIGHT_BROWSERS_PATH}/"; \
+    uv sync --directory "${TIKTOK_DOWNLOADER_PATH}" --no-dev --python 3.12; \
+    uv sync --directory "${XHS_DOWNLOADER_PATH}" --no-dev --python 3.12; \
+    uv sync --directory "${KS_DOWNLOADER_PATH}" --no-dev --python 3.12
+
+FROM cpu-runtime-base AS backend-cpu
+
+WORKDIR /app/backend
+
+COPY --link backend/pyproject.toml backend/uv.lock backend/README.md /app/backend/
+COPY --link --from=cpu-deps /app/backend/.venv /app/backend/.venv
+COPY --link --from=cpu-deps /opt/localvideo/external /opt/localvideo/external
+COPY --link --from=cpu-deps /opt/localvideo/crawl4ai-home /opt/localvideo/crawl4ai-home
+COPY --link --from=cpu-deps /opt/localvideo/playwright-browsers /opt/localvideo/playwright-browsers
+COPY --link --from=cpu-deps /opt/uv-python /opt/uv-python
+COPY --link backend/app /app/backend/app
+COPY --link backend/scripts /app/backend/scripts
+COPY --link backend/alembic /app/backend/alembic
+COPY --link backend/alembic.ini /app/backend/alembic.ini
+COPY --link backend/storage/voice-library/builtin /opt/localvideo/builtin-storage/voice-library/builtin
+COPY --link backend/storage/reference-library/builtin /opt/localvideo/builtin-storage/reference-library/builtin
+COPY --link docker/backend-entrypoint.sh /app/docker/backend-entrypoint.sh
+
+RUN --mount=type=cache,id=localvideo-uv-cache,target=/opt/uv-cache,sharing=locked \
+    set -eux; \
+    chmod +x /app/docker/backend-entrypoint.sh; \
+    mkdir -p /data/storage /data/cache/huggingface /data/cache/torch; \
+    uv sync --frozen --no-dev --python 3.11
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=5 \
+    CMD curl -fsS http://127.0.0.1:8000/health || exit 1
+
+ENTRYPOINT ["/app/docker/backend-entrypoint.sh"]
+
+FROM ${CUDA_BASE_IMAGE} AS gpu-runtime-base
+
+ARG DEBIAN_FRONTEND
+
+ENV LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8 \
+    TZ=Asia/Shanghai \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    CC=/usr/bin/gcc \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    UV_LINK_MODE=copy \
+    UV_COMPILE_BYTECODE=1 \
+    UV_CACHE_DIR=/opt/uv-cache \
+    UV_PYTHON_INSTALL_DIR=/opt/uv-python \
+    LOCALVIDEO_EXTERNAL_ROOT=/opt/localvideo/external \
+    WAN2GP_PATH=/opt/localvideo/external/Wan2GP \
+    CRAWL4_AI_BASE_DIRECTORY=/opt/localvideo/crawl4ai-home \
+    PLAYWRIGHT_BROWSERS_PATH=/opt/localvideo/playwright-browsers \
+    LOCAL_MODEL_PYTHON_PATH=/opt/localvideo/runtime310/bin/python \
+    XHS_DOWNLOADER_PATH=/opt/localvideo/external/XHS-Downloader \
+    TIKTOK_DOWNLOADER_PATH=/opt/localvideo/external/TikTokDownloader \
+    KS_DOWNLOADER_PATH=/opt/localvideo/external/KS-Downloader \
+    LOCALVIDEO_RUNTIME_ENV=docker \
+    DEPLOYMENT_PROFILE=gpu \
+    DATABASE_URL=sqlite+aiosqlite:////data/app.db \
+    STORAGE_PATH=/data/storage \
+    HF_HOME=/data/cache/huggingface \
+    HUGGINGFACE_HUB_CACHE=/data/cache/huggingface/hub \
+    TRANSFORMERS_CACHE=/data/cache/huggingface/transformers \
+    TORCH_HOME=/data/cache/torch \
+    GIT_PYTHON_GIT_EXECUTABLE=/usr/bin/git \
+    PATH=/root/.local/bin:/app/backend/.venv/bin:${PATH}
+
+RUN --mount=type=cache,id=localvideo-apt-ubuntu-cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,id=localvideo-apt-ubuntu-lists,target=/var/lib/apt/lists,sharing=locked \
+    apt-get update && apt-get install -y --no-install-recommends \
+    bash \
+    ca-certificates \
+    curl \
+    ffmpeg \
+    fonts-liberation \
+    fonts-noto-cjk \
+    gcc \
+    g++ \
+    git \
+    libasound2t64 \
+    libatk-bridge2.0-0t64 \
+    libgbm1 \
+    libgl1 \
+    libglib2.0-0t64 \
+    libgomp1 \
+    libgtk-3-0t64 \
+    libnspr4 \
+    libnss3 \
+    libsm6 \
+    libsndfile1 \
+    tzdata \
+    libx11-6 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxext6 \
+    libxfixes3 \
+    libxkbcommon0 \
+    libxrandr2 \
+    libxrender1 \
+    python3 \
+    python3-pip \
+    python3-venv
+
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+
+RUN ln -snf /usr/share/zoneinfo/${TZ} /etc/localtime && echo ${TZ} > /etc/timezone
+
+FROM gpu-runtime-base AS gpu-build-base
+
+RUN --mount=type=cache,id=localvideo-apt-ubuntu-cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,id=localvideo-apt-ubuntu-lists,target=/var/lib/apt/lists,sharing=locked \
+    apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    git \
+    pkg-config
+
+FROM gpu-build-base AS gpu-deps
+
+ARG WAN2GP_PYTHON_VERSION
+ARG TORCH_CUDA_INDEX_URL
+ARG TORCH_VERSION
+ARG TORCHVISION_VERSION
+ARG TORCHAUDIO_VERSION
+
+WORKDIR /app/backend
+
+COPY --link backend/pyproject.toml backend/uv.lock backend/README.md /app/backend/
+COPY --from=external-sources /opt/localvideo/external /opt/localvideo/external
+
+RUN --mount=type=cache,id=localvideo-uv-cache,target=/opt/uv-cache,sharing=locked \
+    --mount=type=cache,id=localvideo-playwright-cache,target=/tmp/playwright-browsers-cache,sharing=locked \
+    set -eux; \
+    uv sync --frozen --no-dev --no-install-project --python 3.11; \
+    CRAWL4AI_MODE=api uv run crawl4ai-setup; \
+    rm -rf "${PLAYWRIGHT_BROWSERS_PATH}"; \
+    PLAYWRIGHT_BROWSERS_PATH=/tmp/playwright-browsers-cache \
+        uv run python -m playwright install --force chromium; \
+    PLAYWRIGHT_BROWSERS_PATH=/tmp/playwright-browsers-cache \
+        uv run python -m patchright install --force chromium; \
+    mkdir -p "${PLAYWRIGHT_BROWSERS_PATH}"; \
+    cp -a /tmp/playwright-browsers-cache/. "${PLAYWRIGHT_BROWSERS_PATH}/"; \
+    uv sync --directory "${TIKTOK_DOWNLOADER_PATH}" --no-dev --python 3.12; \
+    uv sync --directory "${XHS_DOWNLOADER_PATH}" --no-dev --python 3.12; \
+    uv sync --directory "${KS_DOWNLOADER_PATH}" --no-dev --python 3.12; \
+    uv venv --python "${WAN2GP_PYTHON_VERSION}" /opt/localvideo/runtime310; \
+    uv pip install --python /opt/localvideo/runtime310/bin/python \
+        --index-url "${TORCH_CUDA_INDEX_URL}" \
+        "torch==${TORCH_VERSION}" \
+        "torchvision==${TORCHVISION_VERSION}" \
+        "torchaudio==${TORCHAUDIO_VERSION}"; \
+    uv pip install --python /opt/localvideo/runtime310/bin/python \
+        --index-strategy unsafe-best-match \
+        -r "${WAN2GP_PATH}/requirements.txt"; \
+    uv pip install --python /opt/localvideo/runtime310/bin/python \
+        --index-strategy unsafe-best-match \
+        "faster-whisper>=1.2.1"
+
+FROM gpu-runtime-base AS backend-gpu
+
+WORKDIR /app/backend
+
+COPY --link backend/pyproject.toml backend/uv.lock backend/README.md /app/backend/
+COPY --link --from=gpu-deps /app/backend/.venv /app/backend/.venv
+COPY --link --from=gpu-deps /opt/localvideo/external /opt/localvideo/external
+COPY --link --from=gpu-deps /opt/localvideo/crawl4ai-home /opt/localvideo/crawl4ai-home
+COPY --link --from=gpu-deps /opt/localvideo/playwright-browsers /opt/localvideo/playwright-browsers
+COPY --link --from=gpu-deps /opt/localvideo/runtime310 /opt/localvideo/runtime310
+COPY --link --from=gpu-deps /opt/uv-python /opt/uv-python
+COPY --link backend/app /app/backend/app
+COPY --link backend/scripts /app/backend/scripts
+COPY --link backend/alembic /app/backend/alembic
+COPY --link backend/alembic.ini /app/backend/alembic.ini
+COPY --link backend/storage/voice-library/builtin /opt/localvideo/builtin-storage/voice-library/builtin
+COPY --link backend/storage/reference-library/builtin /opt/localvideo/builtin-storage/reference-library/builtin
+COPY --link docker/backend-entrypoint.sh /app/docker/backend-entrypoint.sh
+
+RUN --mount=type=cache,id=localvideo-uv-cache,target=/opt/uv-cache,sharing=locked \
+    set -eux; \
+    chmod +x /app/docker/backend-entrypoint.sh; \
+    mkdir -p /data/storage /data/cache/huggingface /data/cache/torch; \
+    uv sync --frozen --no-dev --python 3.11
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=5 \
+    CMD curl -fsS http://127.0.0.1:8000/health || exit 1
+
+ENTRYPOINT ["/app/docker/backend-entrypoint.sh"]

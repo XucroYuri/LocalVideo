@@ -1,0 +1,60 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build Release Notes
+        env:
+          REPOSITORY_URL: ${{ github.server_url }}/${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          PREV_TAG="$(git describe --tags --abbrev=0 "${GITHUB_SHA}^" 2>/dev/null || true)"
+
+          {
+            echo "## Changelog"
+            echo
+          } > RELEASE_NOTES.md
+
+          if [ -n "${PREV_TAG}" ]; then
+            RANGE="${PREV_TAG}..${GITHUB_SHA}"
+            echo "Previous tag: ${PREV_TAG}"
+          else
+            RANGE="${GITHUB_SHA}"
+            echo "No previous tag found."
+          fi
+
+          git log --reverse --format='%H%x09%h%x09%s' "${RANGE}" \
+            | awk -F '\t' '$3 !~ /^(docs|test)(\([^)]+\))?: /' \
+            | while IFS=$'\t' read -r full_sha short_sha subject; do
+                echo "- [\`${short_sha}\`](${REPOSITORY_URL}/commit/${full_sha}) ${subject}" >> RELEASE_NOTES.md
+              done
+
+          if ! grep -q '^- ' RELEASE_NOTES.md; then
+            echo "- No user-facing changes in this release." >> RELEASE_NOTES.md
+          fi
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            --title "${GITHUB_REF_NAME}" \
+            --notes-file RELEASE_NOTES.md \
+            --verify-tag
