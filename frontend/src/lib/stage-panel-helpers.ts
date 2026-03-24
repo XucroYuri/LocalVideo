@@ -2,7 +2,6 @@ import type {
   ImageProviderType,
   LLMProviderConfig,
   Settings,
-  VertexVideoModel as ApiVertexVideoModel,
   Wan2gpImagePreset,
   Wan2gpVideoPreset,
 } from '@/types/settings'
@@ -18,53 +17,8 @@ export interface VertexVideoModelInfo {
   referenceRestrictions: string[]
 }
 
-/** Convert backend capabilities response to frontend format. */
-export function fromApiVertexVideoModels(models: ApiVertexVideoModel[]): VertexVideoModelInfo[] {
-  return models.map((m) => ({
-    id: m.id,
-    label: m.label,
-    supportsReferenceImage: m.supports_reference_image,
-    supportsCombinedReference: m.supports_combined_reference,
-    supportsLastFrame: m.supports_last_frame,
-    referenceRestrictions: m.reference_restrictions,
-  }))
-}
-
-/** Hardcoded fallback — used when capabilities API is not yet loaded. */
-export const VERTEX_VIDEO_MODELS: readonly VertexVideoModelInfo[] = [
-  {
-    id: 'veo-3.1',
-    label: 'veo-3.1',
-    supportsReferenceImage: false,
-    supportsCombinedReference: false,
-    supportsLastFrame: true,
-    referenceRestrictions: [],
-  },
-  {
-    id: 'veo-3.1-fast',
-    label: 'veo-3.1-fast',
-    supportsReferenceImage: false,
-    supportsCombinedReference: false,
-    supportsLastFrame: true,
-    referenceRestrictions: [],
-  },
-  {
-    id: 'veo-3.1-preview',
-    label: 'veo-3.1-preview',
-    supportsReferenceImage: true,
-    supportsCombinedReference: false,
-    supportsLastFrame: true,
-    referenceRestrictions: ['最多 3 张参考图', '每张图需为单一主体'],
-  },
-  {
-    id: 'veo-3.1-fast-preview',
-    label: 'veo-3.1-fast-preview',
-    supportsReferenceImage: true,
-    supportsCombinedReference: false,
-    supportsLastFrame: true,
-    referenceRestrictions: ['最多 3 张参考图', '每张图需为单一主体'],
-  },
-] as const
+// Legacy vertex video catalogs are intentionally empty after the Seedance/Wan2GP convergence.
+export const VERTEX_VIDEO_MODELS: readonly VertexVideoModelInfo[] = []
 
 export const CONCURRENCY_OPTIONS = ['1', '2', '4', '8', '16']
 export const SECTION_TITLE_CLASS = 'text-base font-semibold tracking-tight'
@@ -342,23 +296,7 @@ export function getVertexVideoDefaults(
   aspectRatio: string
   resolution: string
 } {
-  const fallbackModel = 'veo-3.1-fast-preview'
-  const modelOptions = new Set<string>(VERTEX_VIDEO_MODELS.map((item) => String(item.id)))
-  const defaultBinding = getDefaultVideoBinding(settings, mode)
-  if (defaultBinding?.providerId === 'vertex_ai' && modelOptions.has(defaultBinding.modelId)) {
-    return {
-      model: defaultBinding.modelId,
-      aspectRatio: settings?.video_vertex_ai_aspect_ratio || '16:9',
-      resolution: settings?.video_vertex_ai_resolution || '1080',
-    }
-  }
-  const configuredModel = String(settings?.video_vertex_ai_model || '').trim()
-  if (!settings) return { model: 'veo-3.1-fast-preview', aspectRatio: '16:9', resolution: '1080' }
-  return {
-    model: modelOptions.has(configuredModel) ? configuredModel : fallbackModel,
-    aspectRatio: settings.video_vertex_ai_aspect_ratio || '16:9',
-    resolution: settings.video_vertex_ai_resolution || '1080',
-  }
+  return getSeedanceVideoDefaults(settings, mode)
 }
 
 export function getSeedanceVideoDefaults(
@@ -393,23 +331,7 @@ export function getKlingVideoDefaults(
   aspectRatio: string
   resolution: string
 } {
-  const defaultBinding = getDefaultVideoBinding(settings, mode)
-  const configuredAspectRatio = String(settings?.video_kling_aspect_ratio || '').trim()
-  const resolvedAspectRatio = KLING_VIDEO_ASPECT_RATIOS.includes(configuredAspectRatio as (typeof KLING_VIDEO_ASPECT_RATIOS)[number])
-    ? configuredAspectRatio
-    : '9:16'
-  if (defaultBinding?.providerId === 'kling' && defaultBinding.modelId) {
-    return {
-      model: defaultBinding.modelId,
-      aspectRatio: resolvedAspectRatio,
-      resolution: '1080',
-    }
-  }
-  return {
-    model: settings?.video_kling_model || 'kling-v3',
-    aspectRatio: resolvedAspectRatio,
-    resolution: '1080',
-  }
+  return getSeedanceVideoDefaults(settings, mode)
 }
 
 export function getViduVideoDefaults(
@@ -420,31 +342,7 @@ export function getViduVideoDefaults(
   aspectRatio: string
   resolution: string
 } {
-  const defaultBinding = getDefaultVideoBinding(settings, mode)
-  const configuredAspectRatio = String(settings?.video_vidu_aspect_ratio || '').trim()
-  const resolvedAspectRatio = VIDU_VIDEO_ASPECT_RATIOS.includes(configuredAspectRatio as (typeof VIDU_VIDEO_ASPECT_RATIOS)[number])
-    ? configuredAspectRatio
-    : '9:16'
-  const configuredResolutionRaw = String(settings?.video_vidu_resolution || '').trim().toLowerCase()
-  const resolvedResolution = configuredResolutionRaw === '540' || configuredResolutionRaw === '540p'
-    ? '540p'
-    : configuredResolutionRaw === '720' || configuredResolutionRaw === '720p'
-      ? '720p'
-      : configuredResolutionRaw === '1080' || configuredResolutionRaw === '1080p'
-        ? '1080p'
-        : '1080p'
-  if (defaultBinding?.providerId === 'vidu' && defaultBinding.modelId) {
-    return {
-      model: defaultBinding.modelId,
-      aspectRatio: resolvedAspectRatio,
-      resolution: resolvedResolution,
-    }
-  }
-  return {
-    model: settings?.video_vidu_model || 'viduq3-turbo',
-    aspectRatio: resolvedAspectRatio,
-    resolution: resolvedResolution,
-  }
+  return getSeedanceVideoDefaults(settings, mode)
 }
 
 export function getWan2gpVideoDefaults(

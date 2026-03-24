@@ -39,13 +39,6 @@ const QWEN3_CUSTOM_VOICE_MODES = [
   'vivian',
 ]
 
-const VERTEX_LAST_FRAME_SUPPORTED_MODELS = [
-  'veo-3.1',
-  'veo-3.1-fast',
-  'veo-3.1-preview',
-  'veo-3.1-fast-preview',
-]
-
 const SEEDANCE_LAST_FRAME_SUPPORTED_MODELS = [
   'seedance-2-0',
   'seedance-2-0-fast',
@@ -133,14 +126,6 @@ function resolveSingleTakeVideoModel(params: {
   const providerFallback = String(
     settings ? getVideoModelByProvider(provider, settings, mode) : ''
   ).trim()
-  if (provider === 'vertex_ai') {
-    const fallback = providerFallback || 'veo-3.1-fast-preview'
-    const candidate = preferred || fallback
-    if (VERTEX_LAST_FRAME_SUPPORTED_MODELS.includes(candidate)) return candidate
-    return VERTEX_LAST_FRAME_SUPPORTED_MODELS.includes(fallback)
-      ? fallback
-      : VERTEX_LAST_FRAME_SUPPORTED_MODELS[0]
-  }
   if (provider === 'volcengine_seedance') {
     const fallback = providerFallback || 'seedance-2-0'
     const candidate = preferred || fallback
@@ -148,6 +133,9 @@ function resolveSingleTakeVideoModel(params: {
     return SEEDANCE_LAST_FRAME_SUPPORTED_MODELS.includes(fallback)
       ? fallback
       : SEEDANCE_LAST_FRAME_SUPPORTED_MODELS[0]
+  }
+  if (provider === 'wan2gp') {
+    return preferred || providerFallback || undefined
   }
   return preferred || providerFallback || undefined
 }
