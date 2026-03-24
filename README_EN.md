@@ -95,6 +95,18 @@ docker compose --profile gpu up --build
 
 ---
 
+## 🧭 Development Loop
+
+This repository follows a mandatory "finish phase -> verify -> commit -> push -> continue" workflow for development, iteration, refactors, and non-trivial fixes.
+
+- Each request should be split into milestone-based phases that match product or functional boundaries.
+- After each completed phase, verify it, create one scoped commit, push it to GitHub, and then continue to the next phase.
+- Do not collapse multiple milestones into one catch-all commit, and do not stop after planning when the next safe phase is already executable.
+
+Full workflow: [docs/development-workflow.md](./docs/development-workflow.md)
+
+---
+
 ## 🧠 Local Models
 
 LocalVideo now uses **Seedance 2.0** as the primary video engine, while **Wan2GP** provides local audio, image, and video fallback capabilities, with local video support up to 1080p output.
