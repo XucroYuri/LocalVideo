@@ -112,15 +112,6 @@ export interface Settings {
   // Google Cloud 共享凭证
   google_credentials_path?: string
 
-  // Video Provider - Vertex AI
-  video_vertex_ai_project?: string
-  video_vertex_ai_location: string
-  video_vertex_ai_model: string
-  video_vertex_ai_aspect_ratio: string
-  video_vertex_ai_resolution: string
-  video_vertex_ai_negative_prompt: string
-  video_vertex_ai_enabled_models?: string[] | null
-
   // Video Provider - Seedance
   video_seedance_api_key_set: boolean
   video_seedance_api_key?: string
@@ -137,17 +128,6 @@ export interface Settings {
   video_wan2gp_resolution: string
   video_wan2gp_negative_prompt: string
   video_wan2gp_enabled_models?: string[] | null
-  video_kling_model: string
-  video_kling_aspect_ratio: string
-  video_kling_mode: 'std' | 'pro' | string
-  video_vidu_model: string
-  video_vidu_aspect_ratio: string
-  video_vidu_resolution: string
-  video_vidu_enabled_models?: string[] | null
-  video_minimax_model: string
-  video_minimax_aspect_ratio: string
-  video_minimax_resolution: string
-  video_minimax_enabled_models?: string[] | null
 
   // Audio Provider - Edge TTS
   edge_tts_voice: string
@@ -321,15 +301,6 @@ export interface SettingsUpdate {
   // Google Cloud 共享凭证
   google_credentials_path?: string
 
-  // Video Provider - Vertex AI
-  video_vertex_ai_project?: string
-  video_vertex_ai_location?: string
-  video_vertex_ai_model?: string
-  video_vertex_ai_aspect_ratio?: string
-  video_vertex_ai_resolution?: string
-  video_vertex_ai_negative_prompt?: string
-  video_vertex_ai_enabled_models?: string[] | null
-
   // Video Provider - Seedance
   video_seedance_api_key?: string
   video_seedance_base_url?: string
@@ -345,17 +316,6 @@ export interface SettingsUpdate {
   video_wan2gp_resolution?: string
   video_wan2gp_negative_prompt?: string
   video_wan2gp_enabled_models?: string[] | null
-  video_kling_model?: string
-  video_kling_aspect_ratio?: string
-  video_kling_mode?: 'std' | 'pro' | string
-  video_vidu_model?: string
-  video_vidu_aspect_ratio?: string
-  video_vidu_resolution?: string
-  video_vidu_enabled_models?: string[] | null
-  video_minimax_model?: string
-  video_minimax_aspect_ratio?: string
-  video_minimax_resolution?: string
-  video_minimax_enabled_models?: string[] | null
 
   // Audio Provider - Edge TTS
   edge_tts_voice?: string
