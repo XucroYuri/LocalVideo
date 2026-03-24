@@ -68,7 +68,6 @@ yarn-error.log*
 # ====================
 .env.docker
 *.pem
-AGENTS.md
 CLAUDE.md
 prompt.txt
 revision_record.txt
