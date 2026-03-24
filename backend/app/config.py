@@ -196,17 +196,6 @@ class Settings(BaseSettings):
     video_wan2gp_resolution: str = "720x1280"
     video_wan2gp_negative_prompt: str = ""
     video_wan2gp_enabled_models: list[str] | None = Field(default=None)
-    video_kling_model: str = "kling-v3"
-    video_kling_aspect_ratio: str = "9:16"
-    video_kling_mode: str = "std"
-    video_vidu_model: str = "viduq3-turbo"
-    video_vidu_aspect_ratio: str = "9:16"
-    video_vidu_resolution: str = "1080p"
-    video_vidu_enabled_models: list[str] | None = None
-    video_minimax_model: str = "MiniMax-Hailuo-2.3"
-    video_minimax_aspect_ratio: str = "9:16"
-    video_minimax_resolution: str = "1080P"
-    video_minimax_enabled_models: list[str] | None = None
 
     # Default Providers
     default_llm_provider: str = "builtin_openai"
