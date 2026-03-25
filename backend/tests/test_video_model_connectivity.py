@@ -86,13 +86,13 @@ async def test_video_model_connectivity_checks_wan2gp_runtime_model_validation(
 
 
 @pytest.mark.asyncio
-async def test_video_model_connectivity_rejects_unsupported_provider() -> None:
+async def test_video_model_connectivity_rejects_legacy_vertex_provider() -> None:
     result = await settings_video_module.test_video_model_connectivity(
         VideoModelConnectivityTestRequest(
-            provider_id="unsupported_provider",
+            provider_id="vertex_ai",
             model="test-model",
         )
     )
 
     assert result.success is False
-    assert result.error == "Unsupported video provider: unsupported_provider"
+    assert result.error == "Unsupported video provider: vertex_ai"

@@ -13,9 +13,9 @@ def test_localvideo_settings_default_to_seedance_primary_and_wan2gp_fallback_rea
     assert settings.video_wan2gp_i2v_preset == "i2v_720p"
 
 
-def test_video_config_resolver_maps_unsupported_video_provider_back_to_seedance() -> None:
+def test_video_config_resolver_maps_legacy_vertex_video_provider_back_to_seedance() -> None:
     resolved = VideoConfigResolver.resolve(
-        {"video_provider": "unsupported_video"},
+        {"video_provider": "vertex_ai"},
         {},
     )
 

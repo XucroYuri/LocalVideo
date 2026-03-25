@@ -96,7 +96,7 @@ def test_settings_general_output_keeps_only_seedance_and_wan2gp_video_contract(
     )
     monkeypatch.setattr(general_module, "_is_wan2gp_available", lambda: True)
     monkeypatch.setattr(general_module, "_is_volcengine_tts_configured", lambda: False)
-    monkeypatch.setattr(general_module.settings, "default_video_provider", "legacy-video")
+    monkeypatch.setattr(general_module.settings, "default_video_provider", "kling")
 
     response = general_module._build_settings_response()
     dumped = response.model_dump()
