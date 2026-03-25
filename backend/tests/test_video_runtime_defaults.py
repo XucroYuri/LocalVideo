@@ -13,25 +13,10 @@ def test_localvideo_settings_default_to_seedance_primary_and_wan2gp_fallback_rea
     assert settings.video_wan2gp_i2v_preset == "i2v_720p"
 
 
-def test_video_config_resolver_maps_legacy_video_provider_back_to_seedance() -> None:
+def test_video_config_resolver_maps_unsupported_video_provider_back_to_seedance() -> None:
     resolved = VideoConfigResolver.resolve(
-        {"video_provider": "vertex_ai"},
+        {"video_provider": "unsupported_video"},
         {},
     )
 
     assert resolved.video_provider_name == "volcengine_seedance"
-
-
-def test_video_config_resolver_seedance_runtime_kwargs_ignore_legacy_vertex_prompt() -> None:
-    resolved = VideoConfigResolver.resolve(
-        {
-            "video_provider": "vertex_ai",
-            "video_vertex_ai_negative_prompt": "legacy-negative-prompt",
-        },
-        {
-            "video_vertex_ai_negative_prompt": "legacy-config-negative-prompt",
-        },
-    )
-
-    assert resolved.video_provider_name == "volcengine_seedance"
-    assert "negative_prompt" not in resolved.provider_kwargs

@@ -5,7 +5,6 @@ import pytest
 
 from app.providers.audio.minimax_tts import MiniMaxTTSProvider
 from app.providers.image.minimax import MiniMaxImageProvider
-from app.providers.video.minimax import MiniMaxVideoProvider
 
 
 class _FakeMiniMaxClient:
@@ -32,9 +31,6 @@ class _FakeMiniMaxClient:
                     "data": {"image_urls": ["https://example.com/image.png"]},
                 },
             )
-        if url.endswith("/video_generation"):
-            assert json["model"] == "MiniMax-Hailuo-2.3"
-            return httpx.Response(200, request=request, json={"task_id": "video-task-1"})
         if url.endswith("/t2a_v2"):
             assert json["model"] == "speech-2.8-turbo"
             assert json["stream"] is False
@@ -78,20 +74,6 @@ class _FakeMiniMaxClient:
         request = httpx.Request("GET", url, headers=headers, params=params)
         if url == "https://example.com/image.png":
             return httpx.Response(200, request=request, content=b"fake-image-bytes")
-        if url.endswith("/query/video_generation"):
-            return httpx.Response(
-                200,
-                request=request,
-                json={"status": "Success", "file_id": "file-video-1"},
-            )
-        if url.endswith("/files/retrieve"):
-            return httpx.Response(
-                200,
-                request=request,
-                json={"file": {"download_url": "https://example.com/video.mp4"}},
-            )
-        if url == "https://example.com/video.mp4":
-            return httpx.Response(200, request=request, content=b"fake-video-bytes")
         raise AssertionError(f"Unexpected GET {url}")
 
 
@@ -155,43 +137,6 @@ async def test_minimax_image_provider_downloads_first_image(
     assert result.file_path.read_bytes() == b"fake-image-bytes"
     assert result.width == 1024
     assert result.height == 1024
-
-
-@pytest.mark.asyncio
-async def test_minimax_video_provider_polls_and_downloads_result(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    monkeypatch.setattr(httpx, "AsyncClient", _FakeMiniMaxClient)
-
-    async def _fake_probe(_path: Path) -> tuple[float, int, int, int]:
-        return 6.0, 1080, 1920, 24
-
-    monkeypatch.setattr(
-        "app.providers.video.minimax._probe_video_metadata",
-        _fake_probe,
-    )
-    provider = MiniMaxVideoProvider(
-        api_key="test-key",
-        base_url="https://api.minimaxi.com",
-        model="MiniMax-Hailuo-2.3",
-        poll_interval=0.01,
-        max_wait_time=1.0,
-    )
-
-    result = await provider.generate(
-        prompt="城市夜景",
-        output_path=tmp_path / "sample.mp4",
-        duration=6,
-        aspect_ratio="9:16",
-        resolution=1080,
-    )
-
-    assert result.file_path == tmp_path / "sample.mp4"
-    assert result.file_path.read_bytes() == b"fake-video-bytes"
-    assert result.duration == 6.0
-    assert result.width == 1080
-    assert result.height == 1920
 
 
 @pytest.mark.asyncio

@@ -4,25 +4,35 @@ from app.api.v1.settings import general as general_module
 from app.providers import video_registry
 from app.schemas.settings import SettingsResponse, SettingsUpdate
 
-LEGACY_VIDEO_PROVIDER_FIELDS = {
-    "video_vertex_ai_project",
-    "video_vertex_ai_location",
-    "video_vertex_ai_model",
-    "video_vertex_ai_aspect_ratio",
-    "video_vertex_ai_resolution",
-    "video_vertex_ai_negative_prompt",
-    "video_vertex_ai_enabled_models",
-    "video_kling_model",
-    "video_kling_aspect_ratio",
-    "video_kling_mode",
-    "video_vidu_model",
-    "video_vidu_aspect_ratio",
-    "video_vidu_resolution",
-    "video_vidu_enabled_models",
-    "video_minimax_model",
-    "video_minimax_aspect_ratio",
-    "video_minimax_resolution",
-    "video_minimax_enabled_models",
+ACTIVE_VIDEO_RESPONSE_FIELDS = {
+    "video_seedance_api_key_set",
+    "video_seedance_api_key",
+    "video_seedance_base_url",
+    "video_seedance_model",
+    "video_seedance_aspect_ratio",
+    "video_seedance_resolution",
+    "video_seedance_watermark",
+    "video_seedance_enabled_models",
+    "video_wan2gp_t2v_preset",
+    "video_wan2gp_i2v_preset",
+    "video_wan2gp_resolution",
+    "video_wan2gp_negative_prompt",
+    "video_wan2gp_enabled_models",
+}
+
+ACTIVE_VIDEO_UPDATE_FIELDS = {
+    "video_seedance_api_key",
+    "video_seedance_base_url",
+    "video_seedance_model",
+    "video_seedance_aspect_ratio",
+    "video_seedance_resolution",
+    "video_seedance_watermark",
+    "video_seedance_enabled_models",
+    "video_wan2gp_t2v_preset",
+    "video_wan2gp_i2v_preset",
+    "video_wan2gp_resolution",
+    "video_wan2gp_negative_prompt",
+    "video_wan2gp_enabled_models",
 }
 
 
@@ -47,9 +57,6 @@ async def test_settings_video_provider_surface_only_exposes_seedance_and_wan2gp(
     )
     monkeypatch.setattr(general_module, "_is_wan2gp_available", lambda: True)
     monkeypatch.setattr(general_module, "_is_volcengine_tts_configured", lambda: False)
-    monkeypatch.setattr(general_module, "_is_kling_configured", lambda *args, **kwargs: True)
-    monkeypatch.setattr(general_module, "_is_vidu_configured", lambda *args, **kwargs: True)
-    monkeypatch.setattr(general_module, "_is_minimax_configured", lambda *args, **kwargs: True)
     monkeypatch.setattr(general_module, "_is_xiaomi_mimo_configured", lambda *args, **kwargs: False)
 
     response = await general_module.get_available_providers()
@@ -57,9 +64,12 @@ async def test_settings_video_provider_surface_only_exposes_seedance_and_wan2gp(
     assert response.video == ["volcengine_seedance", "wan2gp"]
 
 
-def test_settings_contract_excludes_legacy_video_provider_fields() -> None:
-    assert LEGACY_VIDEO_PROVIDER_FIELDS.isdisjoint(SettingsResponse.model_fields)
-    assert LEGACY_VIDEO_PROVIDER_FIELDS.isdisjoint(SettingsUpdate.model_fields)
+def test_settings_contract_exposes_only_active_video_provider_fields() -> None:
+    response_fields = {name for name in SettingsResponse.model_fields if name.startswith("video_")}
+    update_fields = {name for name in SettingsUpdate.model_fields if name.startswith("video_")}
+
+    assert response_fields == ACTIVE_VIDEO_RESPONSE_FIELDS
+    assert update_fields == ACTIVE_VIDEO_UPDATE_FIELDS
 
 
 def test_video_registry_surface_only_keeps_seedance_and_wan2gp() -> None:
@@ -86,7 +96,7 @@ def test_settings_general_output_keeps_only_seedance_and_wan2gp_video_contract(
     )
     monkeypatch.setattr(general_module, "_is_wan2gp_available", lambda: True)
     monkeypatch.setattr(general_module, "_is_volcengine_tts_configured", lambda: False)
-    monkeypatch.setattr(general_module.settings, "default_video_provider", "kling")
+    monkeypatch.setattr(general_module.settings, "default_video_provider", "legacy-video")
 
     response = general_module._build_settings_response()
     dumped = response.model_dump()
@@ -97,4 +107,4 @@ def test_settings_general_output_keeps_only_seedance_and_wan2gp_video_contract(
     assert response.video_seedance_base_url == "https://kwjm.com/api/v3"
     assert response.video_wan2gp_t2v_preset == "t2v_1.3B"
     assert response.video_wan2gp_i2v_preset == "i2v_720p"
-    assert LEGACY_VIDEO_PROVIDER_FIELDS.isdisjoint(dumped)
+    assert {name for name in dumped if name.startswith("video_")} == ACTIVE_VIDEO_RESPONSE_FIELDS
